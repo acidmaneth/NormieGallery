@@ -1139,22 +1139,29 @@ function handleWalletOverlayClick(e) {
 }
 
 async function resolveAddress(input) {
-  const raw = (input || '').trim();
+  const raw = (input || '').replace(/\s/g, '').trim();
   if (!raw) return null;
-  if (/^0x[a-fA-F0-9]{40}$/.test(raw)) return raw;
+  const hex40 = /^0x[a-fA-F0-9]{40}$/;
+  const hex40NoPrefix = /^[a-fA-F0-9]{40}$/;
+  if (hex40.test(raw)) return raw;
+  if (hex40NoPrefix.test(raw)) return '0x' + raw;
   if (raw.includes('.')) {
-    try {
-      if (typeof ethers === 'undefined') {
-        console.warn('ENS resolution requires ethers library');
-        return null;
-      }
-      const provider = new ethers.JsonRpcProvider('https://cloudflare-eth.com');
-      const addr = await provider.resolveName(raw);
-      return addr || null;
-    } catch (err) {
-      console.warn('ENS resolve:', err);
-      return null;
+    const rpcs = [];
+    if (window.ALCHEMY_API_KEY && window.ALCHEMY_API_KEY !== 'demo') {
+      rpcs.push(`https://eth-mainnet.g.alchemy.com/v2/${window.ALCHEMY_API_KEY}`);
     }
+    rpcs.push('https://eth.llamarpc.com', 'https://cloudflare-eth.com', 'https://rpc.ankr.com/eth');
+    for (const rpc of rpcs) {
+      try {
+        if (typeof ethers === 'undefined') return null;
+        const provider = new ethers.JsonRpcProvider(rpc);
+        const addr = await provider.resolveName(raw);
+        if (addr) return addr;
+      } catch (err) {
+        console.warn('ENS resolve via', rpc, err);
+      }
+    }
+    return null;
   }
   return null;
 }
