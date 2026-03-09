@@ -20,10 +20,6 @@ Before deploying, add your API keys in Netlify:
 | `WC_PROJECT_ID` | Your WalletConnect Project ID | Yes (for WalletConnect modal) |
 | `DELEGATE_API_KEY` | Your Delegate.xyz API key | No (optional, for higher rate limits) |
 
-**Your keys** (from your config):
-- `ALCHEMY_API_KEY` = `uHlmzGpzGtQcB9EKiNRRm`
-- `WC_PROJECT_ID` = `ac60603ed8eb7ef7c571413d7f5d02ab`
-
 3. Click **Deploy site**
 
 ## 3. Build Configuration

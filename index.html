@@ -232,11 +232,15 @@
       display: flex;
       flex-direction: column;
       gap: 18px;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
       padding-right: 24px;
       min-width: 0;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
     }
 
+    .col-left > div:first-of-type { flex-shrink: 0; }
     .canvas-row {
       display: flex;
       align-items: flex-end;
@@ -245,13 +249,42 @@
     .canvas-row input { flex: 1; }
     .canvas-row button { flex-shrink: 0; white-space: nowrap; }
 
-    /* Collection area — fills remaining space */
+    /* Collection area — two columns: filter left, NFTs right */
     .collection-wrap {
-      flex: 1;
-      overflow: hidden;
       display: flex;
       flex-direction: column;
       gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+    .collection-two-col {
+      display: grid;
+      grid-template-columns: 1fr 1.5fr;
+      grid-template-rows: 1fr;
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
+    }
+    .collection-filter-col {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+      min-height: 0;
+    }
+    .collection-filter-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+    .collection-filter-wrap > *:not(.collection-filter-list) { flex-shrink: 0; }
+    .collection-nft-col {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
       min-height: 0;
     }
     .collection-meta {
@@ -259,6 +292,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 6px;
+      flex-shrink: 0;
     }
 
     /* ── CHAIN SELECTOR ── */
@@ -279,29 +313,24 @@
     .chain-btn.active { background: var(--on); color: var(--off); border-color: var(--on); }
 
     /* ── COLLECTION FILTER ── */
-    .collection-filter-wrap { flex-shrink: 0; margin-bottom: 8px; }
     .collection-search-input {
       width: 100%; font-size: 9px; margin-bottom: 6px;
       padding: 5px 8px; border: 1px solid rgba(72,73,75,.3);
+      flex-shrink: 0;
     }
-    .collection-filter-actions { display: flex; gap: 4px; margin-bottom: 6px; }
+    .collection-filter-actions { display: flex; gap: 4px; margin-bottom: 6px; flex-shrink: 0; }
     .filter-action-btn { padding: 3px 10px; font-size: 8px; border-width: 1px; }
     .collection-filter-list {
-      max-height: 360px;
-      overflow-x: auto; overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      display: grid;
-      grid-template-rows: repeat(10, minmax(32px, auto));
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(180px, 1fr);
-      gap: 6px 16px;
-      border: 1px solid rgba(72,73,75,.2); padding: 10px 12px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto; overflow-x: hidden;
+      display: flex; flex-direction: column; gap: 6px;
+      border: 1px solid rgba(72,73,75,.2); padding: 8px 10px;
     }
-    .collection-filter-list::-webkit-scrollbar { height: 6px; }
     .collection-filter-item {
-      display: flex; align-items: center; gap: 10px;
-      font-size: 12px; letter-spacing: 1.5px; cursor: pointer;
-      padding: 6px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      display: flex; align-items: center; gap: 8px;
+      font-size: 9px; letter-spacing: 1.1px; cursor: pointer;
+      padding: 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .collection-filter-item:hover { opacity: .9; }
     .collection-filter-item input { margin: 0; cursor: pointer; flex-shrink: 0; }
@@ -317,17 +346,18 @@
     .bg-val-input { width: 48px; font-size: 9px; padding: 3px 4px; flex-shrink: 0; }
     .bg-reset-btn { margin-top: 12px; padding: 6px 12px; font-size: 8px; width: 100%; }
 
-    .pool-btns { display: flex; gap: 5px; flex-shrink: 0; }
+    .pool-btns { display: flex; gap: 5px; flex-shrink: 0; margin-top: 4px; }
     .pool-btns button { padding: 4px 8px; font-size: 8px; border-width: 1px; }
 
     .nft-scroll {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
     }
     .nft-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 3px;
     }
     .nft-card {
@@ -421,6 +451,7 @@
       display: flex;
       gap: 6px;
       flex-shrink: 0;
+      margin-top: 8px;
     }
     .action-btns button { flex: 1; padding: 8px 0; }
 
@@ -680,11 +711,7 @@
       }
       .col-right { order: 1; min-height: 0; }
       .col-left { order: 2; padding-right: 0; min-height: 0; overflow-y: auto; }
-      .collection-filter-list {
-        max-height: 180px;
-        grid-template-rows: repeat(10, minmax(26px, auto));
-        grid-auto-columns: minmax(130px, 1fr);
-      }
+      .collection-two-col { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -741,21 +768,26 @@
           </div>
         </div>
 
-        <div class="collection-filter-wrap">
-          <div class="micro" style="margin-bottom:6px;">FILTER BY COLLECTION</div>
-          <input type="search" id="collection-search" class="collection-search-input"
-                 placeholder="SEARCH COLLECTION NAME..."
-                 oninput="onCollectionSearchInput(this.value)" />
-          <div class="collection-filter-actions">
-            <button class="filter-action-btn" onclick="tickAllCollections()">ALL</button>
-            <button class="filter-action-btn" onclick="untickAllCollections()">NONE</button>
+        <div class="collection-two-col">
+          <div class="collection-filter-col">
+            <div class="collection-filter-wrap">
+              <div class="micro" style="margin-bottom:6px;">FILTER BY COLLECTION</div>
+              <input type="search" id="collection-search" class="collection-search-input"
+                     placeholder="SEARCH COLLECTION NAME..."
+                     oninput="onCollectionSearchInput(this.value)" />
+              <div class="collection-filter-actions">
+                <button class="filter-action-btn" onclick="tickAllCollections()">ALL</button>
+                <button class="filter-action-btn" onclick="untickAllCollections()">NONE</button>
+              </div>
+              <div class="collection-filter-list" id="collection-filter-list"></div>
+            </div>
           </div>
-          <div class="collection-filter-list" id="collection-filter-list"></div>
-        </div>
-
-        <div class="nft-scroll">
-          <div id="nft-container">
-            <div class="empty">CONNECT WALLET<br>TO VIEW NFTS</div>
+          <div class="collection-nft-col">
+            <div class="nft-scroll">
+              <div id="nft-container">
+                <div class="empty">CONNECT WALLET<br>TO VIEW NFTS</div>
+              </div>
+            </div>
           </div>
         </div>
 
