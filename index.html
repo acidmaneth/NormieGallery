@@ -343,7 +343,7 @@
       background: transparent; color: var(--on);
     }
     /* ── BACKGROUND VALUE INPUTS ── */
-    .bg-val-input { width: 48px; font-size: 9px; padding: 3px 4px; flex-shrink: 0; }
+    .bg-val-input { width: 100%; max-width: 52px; font-size: 9px; padding: 3px 4px; box-sizing: border-box; text-align: right; }
     .bg-reset-btn { margin-top: 12px; padding: 6px 12px; font-size: 8px; width: 100%; }
 
     .pool-btns { display: flex; gap: 5px; flex-shrink: 0; margin-top: 4px; }
@@ -424,17 +424,22 @@
     .bg-pick-btn { font-size: 8px; padding: 5px 10px; border-width: 1px; flex: 1; }
 
     .bg-slider-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 70px 1fr 52px;
+      gap: 10px;
       align-items: center;
-      gap: 8px;
+    }
+    .bg-slider-row.bg-tint-row {
+      grid-template-columns: 70px 36px 1fr 52px;
     }
     .bg-slider-label {
       font-size: 7px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
       opacity: .55;
-      width: 64px;
-      flex-shrink: 0;
+    }
+    .bg-slider-row input[type="range"] {
+      min-width: 0;
     }
     .bg-slider-val {
       font-size: 8px;
@@ -844,7 +849,7 @@
               <input type="number" class="bg-val-input" id="bg-contrast-input" min="20" max="200" value="100"
                      onchange="setBgContrastFromInput()" />
             </div>
-            <div class="bg-slider-row">
+            <div class="bg-slider-row bg-tint-row">
               <span class="bg-slider-label">TINT</span>
               <input type="color" id="bg-tint-color" value="#000000"
                      oninput="updateBgTint()" />
