@@ -239,8 +239,6 @@
       min-height: 0;
       -webkit-overflow-scrolling: touch;
     }
-
-    .col-left > div:first-of-type { flex-shrink: 0; }
     .canvas-row {
       display: flex;
       align-items: flex-end;
@@ -254,38 +252,35 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      flex: 1;
-      min-height: 0;
+      flex-shrink: 0;
     }
     .collection-two-col {
       display: grid;
       grid-template-columns: 1fr 1.5fr;
-      grid-template-rows: 1fr;
-      gap: 16px;
-      flex: 1;
-      min-height: 0;
+      gap: 12px;
+      height: 280px;
     }
     .collection-filter-col {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       min-width: 0;
-      min-height: 0;
+      overflow: hidden;
     }
     .collection-filter-wrap {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       flex: 1;
-      min-height: 0;
+      overflow: hidden;
     }
     .collection-filter-wrap > *:not(.collection-filter-list) { flex-shrink: 0; }
     .collection-nft-col {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       min-width: 0;
-      min-height: 0;
+      overflow: hidden;
     }
     .collection-meta {
       display: flex;
@@ -322,7 +317,6 @@
     .filter-action-btn { padding: 3px 10px; font-size: 8px; border-width: 1px; }
     .collection-filter-list {
       flex: 1;
-      min-height: 0;
       overflow-y: auto; overflow-x: hidden;
       display: flex; flex-direction: column; gap: 6px;
       border: 1px solid rgba(72,73,75,.2); padding: 8px 10px;
@@ -360,7 +354,6 @@
 
     .nft-scroll {
       flex: 1;
-      min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
     }
@@ -742,24 +735,16 @@
     @media (max-width: 768px) {
       .app { padding: 16px 16px 52px; gap: 12px; }
       .workspace {
-        grid-template-columns: 1fr;
-        grid-template-rows: minmax(200px, 40vh) minmax(240px, 1fr);
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
         gap: 16px;
-        overflow: hidden;
-        min-height: 0;
+        height: auto;
       }
-      .col-right { order: 1; min-height: 0; }
-      .col-left { order: 2; padding-right: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
-      .collection-two-col { grid-template-columns: 1fr; }
-      .collection-nft-toggle { display: flex; }
-      .collection-collapsible { transition: max-height .25s ease-out; overflow: hidden; max-height: 2000px; }
-      .collection-collapsible.collapsed { max-height: 0 !important; }
-    }
-    .collection-nft-toggle { display: none; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .collection-nft-toggle button {
-      font-size: 8px; letter-spacing: 1.5px; opacity: .6;
-      background: none; border: none; padding: 4px 0; cursor: pointer;
-      color: var(--on); text-transform: uppercase;
+      html, body { overflow: auto; height: auto; }
+      .col-right { min-height: 0; height: auto; }
+      .col-left { overflow-y: visible; overflow-x: visible; padding-right: 0; }
+      .collection-two-col { grid-template-columns: 1fr; height: 220px; }
     }
   </style>
 </head>
@@ -825,12 +810,6 @@
           </div>
         </div>
 
-        <div class="collection-nft-toggle">
-          <span class="micro">NFTS</span>
-          <button id="collection-toggle-btn" onclick="toggleCollectionNfts()">▾ COLLAPSE</button>
-        </div>
-
-        <div class="collection-collapsible" id="collection-collapsible">
         <div class="collection-two-col">
           <div class="collection-filter-col">
             <div class="collection-filter-wrap">
@@ -858,7 +837,6 @@
           <button onclick="selectAll()">ALL</button>
           <button onclick="deselectAll()">NONE</button>
         </div>
-        </div><!-- /collection-collapsible -->
       </div>
 
       <!-- Background panel -->
@@ -1098,13 +1076,6 @@ window.addEventListener('load', async () => {
   }, 340);
 });
 
-function toggleCollectionNfts() {
-  const el = document.getElementById('collection-collapsible');
-  const btn = document.getElementById('collection-toggle-btn');
-  if (!el || !btn) return;
-  const collapsed = el.classList.toggle('collapsed');
-  btn.textContent = collapsed ? '▾ EXPAND' : '▾ COLLAPSE';
-}
 
 /* ════════════════════════════════════════════════
    WALLET CONNECTION
