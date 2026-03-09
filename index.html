@@ -377,26 +377,10 @@
 
     /* ── BACKGROUND PANEL ── */
     .bg-panel { flex-shrink: 0; }
-    .bg-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 0;
-    }
-    .bg-toggle {
-      font-size: 8px;
-      letter-spacing: 1px;
-      opacity: .5;
-      cursor: pointer;
-      border: none;
-      background: none;
-      padding: 2px 0;
-      color: var(--on);
-      text-transform: uppercase;
-    }
-    .bg-toggle:hover { opacity: 1; background: none; }
-    .bg-content { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-    .bg-content.hidden { display: none; }
+    #bg-content { display: flex; flex-direction: column; gap: 8px; }
+
+    /* ── TILE SIZE ── */
+    .tile-size-ctrl { margin-top: 2px; }
 
     .bg-mode-btns { display: flex; gap: 4px; }
     .bg-mode-btn {
@@ -455,7 +439,7 @@
 
     /* Fill mode & recolor */
     .fill-mode-row { flex-shrink: 0; }
-    .fill-mode-btns { display: flex; gap: 4px; }
+    .fill-mode-btns { display: flex; gap: 4px; flex-wrap: wrap; }
     .fill-mode-btn {
       font-family: 'Robotastic', 'Courier New', monospace;
       font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
@@ -471,6 +455,12 @@
     .recolor-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .recolor-row .bg-slider-label { width: auto; }
     .recolor-apply-btn { font-size: 8px; padding: 5px 12px; border-width: 1px; }
+
+    /* bg-tiles panel */
+    .bg-tiles-panel {
+      margin-top: 8px;
+    }
+    .bg-tiles-panel .pool-btns { margin-top: 4px; }
 
     /* Bottom action buttons */
     .action-btns {
@@ -591,6 +581,11 @@
       display: block;
       position: absolute;
       inset: 0;
+    }
+    /* Filled cells: use background-image for tile rendering */
+    .cell.on.filled {
+      background-color: rgba(72,73,75,.18); /* neutral fallback if image fails */
+      background-repeat: no-repeat;
     }
     .cell.on.filled:hover::after { background: rgba(72,73,75,.3); z-index: 1; }
     .recolor-fill {
@@ -839,18 +834,92 @@
         </div>
       </div>
 
+      <!-- Fill mode & actions -->
+      <div class="fill-mode-row">
+        <div class="micro" style="margin-bottom:6px;">FILL MODE</div>
+        <div class="fill-mode-btns">
+          <button class="fill-mode-btn active" data-mode="nfts"    onclick="setFillMode('nfts')">NFTS</button>
+          <button class="fill-mode-btn"         data-mode="invert"  onclick="setFillMode('invert')">INVERT</button>
+          <button class="fill-mode-btn"         data-mode="recolor" onclick="setFillMode('recolor')">RECOLOR</button>
+        </div>
+        <div id="tile-size-ctrl" class="tile-size-ctrl">
+          <div class="bg-slider-row" style="margin-top:10px;">
+            <span class="bg-slider-label">MAX TILE</span>
+            <input type="range" id="tile-size-slider" min="1" max="10" value="1"
+                   oninput="updateTileSize(this.value)" />
+            <input type="number" class="bg-val-input" id="tile-size-input" min="1" max="10" value="1"
+                   onchange="updateTileSize(this.value)" />
+          </div>
+          <div class="micro" id="tile-size-label" style="margin-top:4px;opacity:.4;">1×1 PIXEL PER NFT</div>
+        </div>
+      </div>
+      <div id="recolor-ctrl" class="recolor-ctrl hidden">
+        <div class="recolor-row">
+          <span class="bg-slider-label">COLOR</span>
+          <input type="color" id="recolor-pick" value="#48494b" oninput="applyRecolor()" />
+          <button class="recolor-apply-btn" onclick="applyRecolor()">APPLY COLOR</button>
+        </div>
+      </div>
+      <div class="action-btns">
+        <button id="btn-auto" onclick="autoFill()">AUTO POPULATE</button>
+        <button id="btn-shuffle" onclick="shuffleFill()">SHUFFLE</button>
+        <button onclick="clearAll()">CLEAR</button>
+      </div>
+
       <!-- Background panel -->
       <div class="bg-panel">
-        <div class="bg-header">
-          <div class="micro">BACKGROUND</div>
-          <button class="bg-toggle" id="bg-toggle" onclick="toggleBgPanel()">▾ EXPAND</button>
-        </div>
-        <div class="bg-content hidden" id="bg-content">
+        <div class="micro" style="margin-bottom:10px;">BACKGROUND</div>
+        <div id="bg-content">
 
           <div class="bg-mode-btns">
-            <button class="bg-mode-btn active" onclick="setBgMode('none')">NONE</button>
-            <button class="bg-mode-btn"         onclick="setBgMode('image')">IMAGE</button>
-            <button class="bg-mode-btn"         onclick="setBgMode('color')">COLOR</button>
+            <button class="bg-mode-btn active" data-bg-mode="none"  onclick="setBgMode('none')">NONE</button>
+            <button class="bg-mode-btn"         data-bg-mode="image" onclick="setBgMode('image')">IMAGE</button>
+            <button class="bg-mode-btn"         data-bg-mode="color" onclick="setBgMode('color')">COLOR</button>
+            <button class="bg-mode-btn"         data-bg-mode="tiles" onclick="setBgMode('tiles')">TILES</button>
+          </div>
+
+          <!-- Tiles mode: background NFT selector -->
+          <div id="bg-tiles-ctrl" class="bg-tiles-panel" style="display:none;">
+            <div class="micro" style="margin-bottom:6px;">SELECT BACKGROUND NFTS</div>
+            <div class="collection-two-col" style="height:190px;">
+              <div class="collection-filter-col">
+                <div class="collection-filter-wrap">
+                  <input type="search" id="bg-collection-search" class="collection-search-input"
+                         placeholder="SEARCH COLLECTION..."
+                         oninput="onBgCollectionSearch(this.value)" />
+                  <div class="collection-filter-actions">
+                    <button class="filter-action-btn" onclick="bgTickAllCollections()">ALL</button>
+                    <button class="filter-action-btn" onclick="bgUntickAllCollections()">NONE</button>
+                  </div>
+                  <div class="collection-filter-list" id="bg-collection-filter-list">
+                    <div class="empty" style="font-size:8px;">LOAD NFTS<br>TO SELECT</div>
+                  </div>
+                </div>
+              </div>
+              <div class="collection-nft-col">
+                <div class="nft-scroll">
+                  <div id="bg-nft-container">
+                    <div class="empty">LOAD NFTS<br>TO SELECT</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pool-btns">
+              <button onclick="bgSelectAll()">ALL</button>
+              <button onclick="bgDeselectAll()">NONE</button>
+            </div>
+            <div class="bg-slider-row" style="margin-top:8px;">
+              <span class="bg-slider-label">MAX TILE</span>
+              <input type="range" id="bg-tile-size-slider" min="1" max="10" value="1"
+                     oninput="updateBgTileSize(this.value)" />
+              <input type="number" class="bg-val-input" id="bg-tile-size-input" min="1" max="10" value="1"
+                     onchange="updateBgTileSize(this.value)" />
+            </div>
+            <div class="micro" id="bg-tile-size-label" style="margin-top:4px;opacity:.4;">1×1 PIXEL PER NFT</div>
+            <div class="action-btns" style="margin-top:8px;">
+              <button onclick="tileBackground()">TILE BACKGROUND</button>
+              <button onclick="clearBgTiles()">CLEAR</button>
+            </div>
           </div>
 
           <!-- Image mode: pick NFT -->
@@ -913,27 +982,6 @@
           </div>
 
         </div>
-      </div>
-
-      <!-- Fill mode & actions -->
-      <div class="fill-mode-row">
-        <div class="micro" style="margin-bottom:6px;">FILL MODE</div>
-        <div class="fill-mode-btns">
-          <button class="fill-mode-btn active" data-mode="nfts" onclick="setFillMode('nfts')">NFTS</button>
-          <button class="fill-mode-btn" data-mode="recolor" onclick="setFillMode('recolor')">RECOLOR</button>
-        </div>
-      </div>
-      <div id="recolor-ctrl" class="recolor-ctrl hidden">
-        <div class="recolor-row">
-          <span class="bg-slider-label">COLOR</span>
-          <input type="color" id="recolor-pick" value="#48494b" oninput="applyRecolor()" />
-          <button class="recolor-apply-btn" onclick="applyRecolor()">APPLY COLOR</button>
-        </div>
-      </div>
-      <div class="action-btns">
-        <button id="btn-auto" onclick="autoFill()">AUTO POPULATE</button>
-        <button id="btn-shuffle" onclick="shuffleFill()">SHUFFLE</button>
-        <button onclick="clearAll()">CLEAR</button>
       </div>
 
     </div><!-- /col-left -->
@@ -1051,13 +1099,21 @@ let normieVersions = [];
 let selectedNormieVersion = 'current';
 
 // Background state
-let bgMode     = 'none';   // 'none' | 'image' | 'color'
+let bgMode     = 'none';   // 'none' | 'image' | 'color' | 'tiles'
 let bgNFT      = null;
 let bgExpanded = false;
 
-// Fill mode: 'nfts' | 'recolor'
-let fillMode   = 'nfts';
-let recolorColor = '#48494b';
+// Fill mode: 'nfts' | 'invert' | 'recolor'
+let fillMode      = 'nfts';
+let recolorColor  = '#48494b';
+let maxTileSize   = 1;
+
+// Combine mode pools
+let bgPoolIndices          = new Set();
+let bgSelectedCollections  = new Set();
+let bgAssignments          = {};
+let bgTileSize             = 1;
+let bgCollectionSearchQuery = '';
 
 /* ════════════════════════════════════════════════
    INIT
@@ -1366,8 +1422,8 @@ async function fetchNFTsForOwner(addr) {
       contract:   (t.contract?.address || '').toLowerCase(),
     })).filter(n => n.image && n.contract);
     all = all.concat(batch);
-    pageKey = data.pageKey;
-    if (!pageKey || batch.length < 100) break;
+    pageKey = data.pageKey || null;
+    if (!pageKey) break;
   }
   return all;
 }
@@ -1389,10 +1445,15 @@ async function fetchNFTs() {
     }
     userNFTs = all;
     poolIndices = new Set(userNFTs.map((_, i) => i));
+    bgPoolIndices = new Set(userNFTs.map((_, i) => i));
     buildCollectionList();
-    selectedCollections = new Set(collectionList.map(c => c.contract));
+    selectedCollections   = new Set(collectionList.map(c => c.contract));
+    bgSelectedCollections = new Set(collectionList.map(c => c.contract));
+    bgCollectionSearchQuery = '';
     renderCollectionFilter();
     renderCollection();
+    renderBgCollectionList();
+    renderBgNFTs();
   } catch (err) {
     console.error('NFT fetch:', err);
     setCollection(`<div class="empty">COULD NOT LOAD ${CHAINS[selectedChain].label} NFTS.<br>SET \`window.ALCHEMY_API_KEY\` IF DEMO LIMITS ARE HIT.</div>`);
@@ -1500,7 +1561,9 @@ function renderCollection() {
     card.className = 'nft-card';
     card.dataset.idx = i;
     card.title = [nft.collection, nft.name].filter(Boolean).join('\n');
-    if (!poolIndices.has(i)) card.classList.add('ex-pool');
+
+    card.classList.toggle('ex-pool', !poolIndices.has(i));
+
     const img = document.createElement('img');
     img.src = nft.image; img.alt = nft.name; img.loading = 'lazy';
     card.appendChild(img);
@@ -1529,13 +1592,15 @@ function getDisplayedIndices() {
 function selectAll() {
   getDisplayedIndices().forEach(i => {
     poolIndices.add(i);
-    document.querySelector(`.nft-card[data-idx="${i}"]`)?.classList.remove('ex-pool');
+    const card = document.querySelector(`.nft-card[data-idx="${i}"]`);
+    if (card) card.classList.remove('ex-pool');
   });
 }
 function deselectAll() {
   getDisplayedIndices().forEach(i => {
     poolIndices.delete(i);
-    document.querySelector(`.nft-card[data-idx="${i}"]`)?.classList.add('ex-pool');
+    const card = document.querySelector(`.nft-card[data-idx="${i}"]`);
+    if (card) card.classList.add('ex-pool');
   });
 }
 
@@ -1644,32 +1709,46 @@ function loadDemo() {
 /* ════════════════════════════════════════════════
    PIXEL GRID
 ════════════════════════════════════════════════ */
+function applyTileBg(el, asgn) {
+  const nft = asgn.nft || asgn;
+  const N = asgn.tileSize || 1;
+  const r = asgn.tileRow || 0;
+  const c = asgn.tileCol || 0;
+  const xPct = N === 1 ? 50 : (c / (N - 1)) * 100;
+  const yPct = N === 1 ? 50 : (r / (N - 1)) * 100;
+  const url = nft.image || nft.imageFull || '';
+  el.style.backgroundImage    = url ? `url('${url.replace(/'/g, "\\'")}')` : 'none';
+  el.style.backgroundSize     = `${N * 100}% ${N * 100}%`;
+  el.style.backgroundPosition = `${xPct}% ${yPct}%`;
+  el.style.backgroundRepeat   = 'no-repeat';
+  el.title = [nft.collection, nft.name].filter(Boolean).join(' — ');
+}
+
 function renderGrid() {
   const grid = document.getElementById('pixel-grid');
   grid.innerHTML = '';
   pixelData.forEach((val, i) => {
     const cell = document.createElement('div');
-    cell.className = val === 1 ? 'cell on' : 'cell';
+    const isOn = val === 1;
+    cell.className = isOn ? 'cell on' : 'cell';
     cell.dataset.i = i;
-    if (val === 1) {
-      if (fillMode === 'recolor' && recolorColor) {
+
+    if (fillMode === 'recolor') {
+      if (isOn && recolorColor) {
         cell.classList.add('filled', 'recolor-cell');
         const colorDiv = document.createElement('div');
         colorDiv.className = 'recolor-fill';
         colorDiv.style.backgroundColor = recolorColor;
         cell.appendChild(colorDiv);
-      } else {
-        const asgn = assignments[i];
-        if (asgn) {
-          cell.classList.add('filled');
-          const img = document.createElement('img');
-          img.src   = asgn.image;
-          img.alt   = asgn.name;
-          img.title = [asgn.collection, asgn.name].filter(Boolean).join(' — ');
-          cell.appendChild(img);
-        }
       }
-      if (fillMode === 'nfts') {
+    } else {
+      const asgn = assignments[i] || (!isOn && bgMode === 'tiles' ? bgAssignments[i] : null);
+      if (asgn) {
+        cell.classList.add('filled');
+        applyTileBg(cell, asgn);
+      }
+      const clickable = (fillMode === 'nfts' && isOn) || (fillMode === 'invert' && !isOn);
+      if (clickable) {
         cell.addEventListener('click', () => { if (!pan.moved) openModal(i); });
       }
     }
@@ -1680,15 +1759,14 @@ function renderGrid() {
 function refreshCell(i) {
   const cell = document.querySelector(`.cell[data-i="${i}"]`);
   if (!cell) return;
-  cell.innerHTML = '';
+  cell.style.backgroundImage = '';
+  cell.style.backgroundSize = '';
+  cell.style.backgroundPosition = '';
+  cell.title = '';
   const asgn = assignments[i];
   if (asgn) {
     cell.classList.add('filled');
-    const img = document.createElement('img');
-    img.src   = asgn.image;
-    img.alt   = asgn.name;
-    img.title = [asgn.collection, asgn.name].filter(Boolean).join(' — ');
-    cell.appendChild(img);
+    applyTileBg(cell, asgn);
   } else {
     cell.classList.remove('filled');
   }
@@ -1711,8 +1789,7 @@ function zoomOut() { cellPx = Math.max(CELL_MIN, cellPx - 2); applyZoom(); }
 function getPool() {
   const pool = [...poolIndices].map(i => userNFTs[i]);
   const showAll = selectedCollections.size === 0;
-  if (showAll) return pool;
-  return pool.filter(nft => selectedCollections.has(nft.contract));
+  return showAll ? pool : pool.filter(nft => selectedCollections.has(nft.contract));
 }
 
 function setFillMode(mode) {
@@ -1720,18 +1797,13 @@ function setFillMode(mode) {
   document.querySelectorAll('.fill-mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   });
-  const recolorCtrl = document.getElementById('recolor-ctrl');
-  const btnAuto = document.getElementById('btn-auto');
-  const btnShuffle = document.getElementById('btn-shuffle');
-  if (mode === 'recolor') {
-    recolorCtrl.classList.remove('hidden');
-    btnAuto.style.display = 'none';
-    btnShuffle.style.display = 'none';
-  } else {
-    recolorCtrl.classList.add('hidden');
-    btnAuto.style.display = '';
-    btnShuffle.style.display = '';
-  }
+  const isRecolor = mode === 'recolor';
+  document.getElementById('recolor-ctrl').classList.toggle('hidden', !isRecolor);
+  document.getElementById('btn-auto').style.display    = isRecolor ? 'none' : '';
+  document.getElementById('btn-shuffle').style.display = isRecolor ? 'none' : '';
+  const tileCtrl = document.getElementById('tile-size-ctrl');
+  if (tileCtrl) tileCtrl.style.display = isRecolor ? 'none' : '';
+  assignments = {};
   renderGrid();
 }
 
@@ -1742,24 +1814,273 @@ function applyRecolor() {
   renderGrid();
 }
 
+// fillOnPixels: true = fill val===1 pixels (Normie body), false = fill val===0 pixels (outside)
+function placeTiles(pool, fillOnPixels) {
+  const targetVal = fillOnPixels ? 1 : 0;
+  const assigned = new Set();
+  // Seed assigned from existing assignments to prevent re-assigning already-tiled pixels
+  Object.keys(assignments).forEach(k => assigned.add(Number(k)));
+
+  pixelData.forEach((val, i) => {
+    if (val !== targetVal || assigned.has(i)) return;
+    const row = Math.floor(i / 40), col = i % 40;
+    const desired = maxTileSize <= 1 ? 1 : Math.ceil(Math.random() * maxTileSize);
+
+    for (let s = desired; s >= 1; s--) {
+      if (row + s > 40 || col + s > 40) continue;
+      let fits = true;
+      for (let dr = 0; dr < s && fits; dr++)
+        for (let dc = 0; dc < s && fits; dc++) {
+          const ni = (row + dr) * 40 + (col + dc);
+          if (pixelData[ni] !== targetVal || assigned.has(ni)) fits = false;
+        }
+      if (fits) {
+        const nft = pool[Math.floor(Math.random() * pool.length)];
+        for (let dr = 0; dr < s; dr++)
+          for (let dc = 0; dc < s; dc++) {
+            const ni = (row + dr) * 40 + (col + dc);
+            assignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc };
+            assigned.add(ni);
+          }
+        return;
+      }
+    }
+    // Absolute 1x1 fallback
+    const nft = pool[Math.floor(Math.random() * pool.length)];
+    assignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+    assigned.add(i);
+  });
+
+  // Safety pass
+  pixelData.forEach((val, i) => {
+    if (val === targetVal && !assignments[i]) {
+      const nft = pool[Math.floor(Math.random() * pool.length)];
+      assignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+    }
+  });
+}
+
 function autoFill() {
   if (!pixelData.length) { alert('Load a Normie first.'); return; }
   const pool = getPool();
-  if (!pool.length) { alert('Select at least one NFT from your selected collection(s).'); return; }
-  pixelData.forEach((v, i) => { if (v === 1) assignments[i] = pool[Math.floor(Math.random() * pool.length)]; });
+  if (!pool.length) { alert('Select at least one NFT from your collection(s).'); return; }
+  assignments = {};
+  placeTiles(pool, fillMode !== 'invert');
   renderGrid();
 }
+
 function shuffleFill() {
-  const keys = Object.keys(assignments);
-  if (!keys.length) { alert('Run Auto Populate first.'); return; }
-  const pool = getPool();
-  if (!pool.length) { alert('Select at least one NFT from your selected collection(s).'); return; }
-  keys.forEach(i => { assignments[i] = pool[Math.floor(Math.random() * pool.length)]; });
+  if (!Object.keys(assignments).length) { alert('Run Auto Populate first.'); return; }
+  const pool       = getPool();
+  if (!pool.length) return;
+  const reassigned = new Set();
+
+  pixelData.forEach((val, i) => {
+    if (reassigned.has(i)) return;
+    const asgn = assignments[i];
+    if (!asgn) return;
+    const N = asgn.tileSize || 1;
+    const originRow = Math.floor(i / 40) - (asgn.tileRow || 0);
+    const originCol = (i % 40) - (asgn.tileCol || 0);
+    const nft = pool[Math.floor(Math.random() * pool.length)];
+    for (let dr = 0; dr < N; dr++)
+      for (let dc = 0; dc < N; dc++) {
+        const ni = (originRow + dr) * 40 + (originCol + dc);
+        if (assignments[ni]) { assignments[ni] = { ...assignments[ni], nft }; reassigned.add(ni); }
+      }
+  });
   renderGrid();
 }
 function clearAll() {
   assignments = {};
   if (fillMode === 'recolor') recolorColor = '';
+  renderGrid();
+}
+
+/* ════════════════════════════════════════════════
+   BACKGROUND TILES
+════════════════════════════════════════════════ */
+function getBgPool() {
+  const showAll = bgSelectedCollections.size === 0;
+  return [...bgPoolIndices]
+    .map(i => userNFTs[i])
+    .filter(nft => nft && (showAll || bgSelectedCollections.has(nft.contract)));
+}
+
+function renderBgCollectionList() {
+  const list = document.getElementById('bg-collection-filter-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!collectionList.length) {
+    list.innerHTML = '<div class="empty" style="font-size:8px;">LOAD NFTS<br>TO SELECT</div>';
+    return;
+  }
+  const q = bgCollectionSearchQuery;
+  const visible = q
+    ? collectionList.filter(c => (c.name || '').toLowerCase().includes(q))
+    : collectionList;
+  if (!visible.length) {
+    list.innerHTML = '<div class="empty" style="font-size:8px;">NO MATCHES</div>';
+    return;
+  }
+  visible.forEach(({ contract, name, count }) => {
+    const label = document.createElement('label');
+    label.className = 'collection-filter-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = bgSelectedCollections.has(contract);
+    cb.addEventListener('change', () => {
+      if (cb.checked) bgSelectedCollections.add(contract);
+      else bgSelectedCollections.delete(contract);
+      renderBgNFTs();
+    });
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(`${name || contract.slice(0,8)+'…'} (${count})`));
+    list.appendChild(label);
+  });
+}
+
+function onBgCollectionSearch(q) {
+  bgCollectionSearchQuery = q.toLowerCase().trim();
+  renderBgCollectionList();
+}
+
+function bgTickAllCollections() {
+  const q = bgCollectionSearchQuery;
+  const visible = q
+    ? collectionList.filter(c => (c.name || '').toLowerCase().includes(q))
+    : collectionList;
+  visible.forEach(c => bgSelectedCollections.add(c.contract));
+  renderBgCollectionList();
+  renderBgNFTs();
+}
+
+function bgUntickAllCollections() {
+  const q = bgCollectionSearchQuery;
+  const visible = q
+    ? collectionList.filter(c => (c.name || '').toLowerCase().includes(q))
+    : collectionList;
+  visible.forEach(c => bgSelectedCollections.delete(c.contract));
+  renderBgCollectionList();
+  renderBgNFTs();
+}
+
+function renderBgNFTs() {
+  const wrap = document.getElementById('bg-nft-container');
+  if (!wrap) return;
+  if (!userNFTs.length) {
+    wrap.innerHTML = '<div class="empty">LOAD NFTS<br>TO SELECT</div>';
+    return;
+  }
+  const showAll = bgSelectedCollections.size === 0;
+  const filtered = userNFTs.filter((nft, i) =>
+    (showAll || bgSelectedCollections.has(nft.contract))
+  );
+  if (!filtered.length) {
+    wrap.innerHTML = '<div class="empty">SELECT COLLECTIONS<br>ABOVE</div>';
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'nft-grid';
+  filtered.forEach(nft => {
+    const i = userNFTs.indexOf(nft);
+    const card = document.createElement('div');
+    card.className = 'nft-card';
+    card.dataset.bgIdx = i;
+    card.title = [nft.collection, nft.name].filter(Boolean).join('\n');
+    card.classList.toggle('ex-pool', !bgPoolIndices.has(i));
+    const img = document.createElement('img');
+    img.src = nft.image; img.alt = nft.name; img.loading = 'lazy';
+    card.appendChild(img);
+    card.addEventListener('click', () => toggleBgPool(i));
+    grid.appendChild(card);
+  });
+  wrap.innerHTML = '';
+  wrap.appendChild(grid);
+}
+
+function toggleBgPool(idx) {
+  if (bgPoolIndices.has(idx)) bgPoolIndices.delete(idx); else bgPoolIndices.add(idx);
+  const card = document.querySelector(`.nft-card[data-bg-idx="${idx}"]`);
+  if (card) card.classList.toggle('ex-pool', !bgPoolIndices.has(idx));
+}
+
+function bgSelectAll() {
+  userNFTs.forEach((nft, i) => {
+    if (bgSelectedCollections.size === 0 || bgSelectedCollections.has(nft.contract)) {
+      bgPoolIndices.add(i);
+      const card = document.querySelector(`.nft-card[data-bg-idx="${i}"]`);
+      if (card) card.classList.remove('ex-pool');
+    }
+  });
+}
+function bgDeselectAll() {
+  userNFTs.forEach((nft, i) => {
+    if (bgSelectedCollections.size === 0 || bgSelectedCollections.has(nft.contract)) {
+      bgPoolIndices.delete(i);
+      const card = document.querySelector(`.nft-card[data-bg-idx="${i}"]`);
+      if (card) card.classList.add('ex-pool');
+    }
+  });
+}
+
+function updateBgTileSize(val) {
+  const v = Math.min(10, Math.max(1, parseInt(val, 10) || 1));
+  bgTileSize = v;
+  document.getElementById('bg-tile-size-slider').value = v;
+  document.getElementById('bg-tile-size-input').value  = v;
+  const lbl = document.getElementById('bg-tile-size-label');
+  if (lbl) lbl.textContent = v === 1 ? '1×1 PIXEL PER NFT' : `UP TO ${v}×${v} PIXELS PER NFT`;
+}
+
+function placeBgTiles(pool) {
+  bgAssignments = {};
+  const assigned = new Set();
+  pixelData.forEach((val, i) => {
+    if (val !== 0 || assigned.has(i)) return;
+    const row = Math.floor(i / 40), col = i % 40;
+    const desired = bgTileSize <= 1 ? 1 : Math.ceil(Math.random() * bgTileSize);
+    for (let s = desired; s >= 1; s--) {
+      if (row + s > 40 || col + s > 40) continue;
+      let fits = true;
+      for (let dr = 0; dr < s && fits; dr++)
+        for (let dc = 0; dc < s && fits; dc++) {
+          const ni = (row + dr) * 40 + (col + dc);
+          if (pixelData[ni] !== 0 || assigned.has(ni)) fits = false;
+        }
+      if (fits) {
+        const nft = pool[Math.floor(Math.random() * pool.length)];
+        for (let dr = 0; dr < s; dr++)
+          for (let dc = 0; dc < s; dc++) {
+            const ni = (row + dr) * 40 + (col + dc);
+            bgAssignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc };
+            assigned.add(ni);
+          }
+        return;
+      }
+    }
+    const nft = pool[Math.floor(Math.random() * pool.length)];
+    bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+    assigned.add(i);
+  });
+  pixelData.forEach((val, i) => {
+    if (val === 0 && !bgAssignments[i]) {
+      const nft = pool[Math.floor(Math.random() * pool.length)];
+      bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+    }
+  });
+}
+
+function tileBackground() {
+  if (!pixelData.length) { alert('Load a Normie first.'); return; }
+  const pool = getBgPool();
+  if (!pool.length) { alert('Select at least one NFT for the background.'); return; }
+  placeBgTiles(pool);
+  renderGrid();
+}
+
+function clearBgTiles() {
+  bgAssignments = {};
   renderGrid();
 }
 
@@ -1805,7 +2126,7 @@ function openModal(cellIdx) {
     img.src = nft.image; img.alt = nft.name; img.loading = 'lazy';
     card.appendChild(img);
     card.addEventListener('click', () => {
-      assignments[activeCellIdx] = nft;
+      assignments[activeCellIdx] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
       refreshCell(activeCellIdx);
       closeModal();
     });
@@ -1821,23 +2142,27 @@ function handleOverlayClick(e) {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 }
 
+function updateTileSize(val) {
+  const v = Math.min(10, Math.max(1, parseInt(val, 10) || 1));
+  maxTileSize = v;
+  document.getElementById('tile-size-slider').value = v;
+  document.getElementById('tile-size-input').value = v;
+  const label = document.getElementById('tile-size-label');
+  label.textContent = v === 1 ? '1×1 PIXEL PER NFT' : `UP TO ${v}×${v} PIXELS PER NFT`;
+}
+
 /* ════════════════════════════════════════════════
    BACKGROUND PANEL
 ════════════════════════════════════════════════ */
-function toggleBgPanel() {
-  bgExpanded = !bgExpanded;
-  document.getElementById('bg-content').classList.toggle('hidden', !bgExpanded);
-  document.getElementById('bg-toggle').textContent = bgExpanded ? '▴ COLLAPSE' : '▾ EXPAND';
-}
-
 function setBgMode(mode) {
   bgMode = mode;
-  document.querySelectorAll('.bg-mode-btn').forEach((btn, i) => {
-    btn.classList.toggle('active', ['none', 'image', 'color'][i] === mode);
+  document.querySelectorAll('.bg-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.bgMode === mode);
   });
+  document.getElementById('bg-tiles-ctrl').style.display = mode === 'tiles' ? '' : 'none';
   document.getElementById('bg-image-ctrl').style.display = mode === 'image' ? '' : 'none';
   document.getElementById('bg-color-ctrl').style.display = mode === 'color' ? '' : 'none';
-  document.getElementById('bg-adj-ctrl').style.display   = mode !== 'none'  ? '' : 'none';
+  document.getElementById('bg-adj-ctrl').style.display   = (mode === 'image' || mode === 'color') ? '' : 'none';
   applyBackground();
 }
 
@@ -2038,6 +2363,9 @@ async function exportCanvas(size) {
     ctx.fillStyle = document.getElementById('bg-color-pick').value;
     ctx.fillRect(0, 0, dim, dim);
     ctx.filter = 'none';
+  } else if (bgMode === 'tiles') {
+    ctx.fillStyle = '#e3e5e4';
+    ctx.fillRect(0, 0, dim, dim);
   } else {
     ctx.fillStyle = '#e3e5e4';
     ctx.fillRect(0, 0, dim, dim);
@@ -2056,24 +2384,33 @@ async function exportCanvas(size) {
     }
   }
 
-  // ── On-pixel cells ──
+  // ── All cells ──
   const drawJobs = pixelData.map(async (val, i) => {
-    if (val === 0) return;
+    const isOn = val === 1;
     const x = (i % 40) * cell;
     const y = Math.floor(i / 40) * cell;
-    if (fillMode === 'recolor' && recolorColor) {
+
+    if (fillMode === 'recolor' && recolorColor && isOn) {
       ctx.fillStyle = recolorColor;
       ctx.fillRect(x, y, cell, cell);
-    } else {
-      const asgn = assignments[i];
-      if (asgn) {
-        const drawn = await drawImageToCanvas(ctx, asgn.imageFull || asgn.image, x, y, cell, cell);
-        if (!drawn) { ctx.fillStyle = '#48494b'; ctx.fillRect(x, y, cell, cell); }
-      } else {
-        ctx.fillStyle = '#48494b';
-        ctx.fillRect(x, y, cell, cell);
-      }
+      return;
     }
+
+    const asgn = assignments[i] || (!isOn && bgMode === 'tiles' ? bgAssignments[i] : null);
+    if (asgn) {
+      const nft = asgn.nft || asgn;
+      const N   = asgn.tileSize || 1;
+      const drawn = await drawImageToCanvas(ctx, nft.imageFull || nft.image, x, y, cell, cell, N, asgn.tileRow || 0, asgn.tileCol || 0);
+      if (!drawn) { ctx.fillStyle = isOn ? '#48494b' : '#e3e5e4'; ctx.fillRect(x, y, cell, cell); }
+      return;
+    }
+
+    // No assignment
+    if (isOn) {
+      ctx.fillStyle = '#48494b';
+      ctx.fillRect(x, y, cell, cell);
+    }
+    // Off-pixels with no assignment: background already drawn beneath, leave transparent
   });
 
   const batch = 8;
@@ -2097,11 +2434,22 @@ async function exportCanvas(size) {
   }
 }
 
-function drawImageToCanvas(ctx, src, x, y, w, h) {
+function drawImageToCanvas(ctx, src, x, y, w, h, tileSize, tileRow, tileCol) {
   return new Promise(resolve => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.onload  = () => { try { ctx.drawImage(img, x, y, w, h); resolve(true); } catch { resolve(false); } };
+    img.onload = () => {
+      try {
+        if (tileSize && tileSize > 1) {
+          const sw = img.naturalWidth  / tileSize;
+          const sh = img.naturalHeight / tileSize;
+          ctx.drawImage(img, tileCol * sw, tileRow * sh, sw, sh, x, y, w, h);
+        } else {
+          ctx.drawImage(img, x, y, w, h);
+        }
+        resolve(true);
+      } catch { resolve(false); }
+    };
     img.onerror = () => resolve(false);
     img.src = src;
   });
