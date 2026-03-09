@@ -217,6 +217,8 @@
     .wallet-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
     #wallet-label { font-size: 9px; letter-spacing: 2px; opacity: .75; }
     #connect-btn { padding: 7px 18px; }
+    #disconnect-btn { padding: 5px 14px; font-size: 8px; opacity: .6; border-width: 1px; }
+    #disconnect-btn:hover { opacity: 1; }
     #wallet-hint { font-size: 8px; letter-spacing: 1.5px; opacity: .7; display: none; }
 
     /* ── TWO-COLUMN WORKSPACE ── */
@@ -741,6 +743,34 @@
       .col-left { overflow-y: visible; overflow-x: visible; padding-right: 0; }
       .collection-two-col { grid-template-columns: 1fr; height: 220px; }
     }
+
+    /* ── SECONDARY FONT: Courier New for tools column & modals ── */
+    :root { --font-courier: 'Courier New', Courier, monospace; }
+
+    .col-left,
+    .overlay .modal {
+      font-family: var(--font-courier);
+      letter-spacing: .4px;
+    }
+
+    /* Override any explicit Robotastic declarations inside those contexts */
+    .col-left button,
+    .col-left input,
+    .col-left select,
+    .col-left .chain-btn,
+    .col-left .bg-mode-btn,
+    .col-left .fill-mode-btn,
+    .col-left .filter-action-btn,
+    .col-left .bg-reset-btn,
+    .overlay .modal button,
+    .overlay .modal input {
+      font-family: var(--font-courier);
+    }
+
+    /* Tighten label spacing slightly in the collection list — Courier is wider than Robotastic */
+    .col-left .collection-filter-item { letter-spacing: .8px; }
+    .col-left .micro                  { letter-spacing: 1.8px; }
+    .col-left .chain-btn              { letter-spacing: .8px; }
   </style>
 </head>
 <body>
@@ -759,6 +789,7 @@
       <div style="display:flex;align-items:center;gap:14px;">
         <span id="wallet-label"></span>
         <button id="connect-btn" onclick="connectWallet()">CONNECT WALLET</button>
+        <button id="disconnect-btn" onclick="disconnectWallet()" style="display:none;">DISCONNECT</button>
       </div>
       <span id="wallet-hint"></span>
     </div>
@@ -1150,12 +1181,35 @@ window._onWalletConnected = async (address) => {
   delegatedVaults = [];
   const short = address.slice(0,6) + '...' + address.slice(-4);
   document.getElementById('wallet-label').textContent = short;
-  const btn = document.getElementById('connect-btn');
-  btn.textContent = 'CONNECTED';
-  btn.disabled    = true;
+  document.getElementById('connect-btn').style.display     = 'none';
+  document.getElementById('disconnect-btn').style.display  = '';
   await fetchDelegateVaults();
   await fetchNFTs();
 };
+
+function disconnectWallet() {
+  walletAddress     = null;
+  addressLookupMode = false;
+  delegatedVaults   = [];
+  userNFTs          = [];
+  poolIndices       = new Set();
+  bgPoolIndices     = new Set();
+  bgSelectedCollections = new Set();
+  bgAssignments     = {};
+  collectionList    = [];
+  selectedCollections = new Set();
+  assignments       = {};
+  document.getElementById('wallet-label').textContent     = '';
+  document.getElementById('address-input').value          = '';
+  document.getElementById('connect-btn').style.display    = '';
+  document.getElementById('disconnect-btn').style.display = 'none';
+  setCollection('<div class="empty">CONNECT WALLET<br>TO VIEW NFTS</div>');
+  renderCollectionFilter();
+  renderBgCollectionList();
+  renderBgNFTs();
+  renderGrid();
+  if (window._wcModal) { try { window._wcModal.disconnect(); } catch (_) {} }
+}
 
 function connectWallet() {
   const hint = document.getElementById('wallet-hint');
@@ -1233,10 +1287,9 @@ async function fetchByAddress() {
   addressLookupMode = true;
   delegatedVaults = [];
   const short = addr.slice(0,6) + '...' + addr.slice(-4);
-  document.getElementById('wallet-label').textContent = short;
-  const btn = document.getElementById('connect-btn');
-  btn.textContent = 'CONNECT WALLET';
-  btn.disabled = false;
+  document.getElementById('wallet-label').textContent   = short;
+  document.getElementById('connect-btn').style.display  = 'none';
+  document.getElementById('disconnect-btn').style.display = '';
   await fetchNFTs();
 }
 
