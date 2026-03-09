@@ -15,6 +15,7 @@
   ╚══════════════════════════════════════════════════════════════╝
   -->
   <script src="./config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <script>
     window.WC_PROJECT_ID = window.WC_PROJECT_ID || 'ac60603ed8eb7ef7c571413d7f5d02ab';
     window.ALCHEMY_API_KEY = window.ALCHEMY_API_KEY || 'demo';
@@ -346,6 +347,15 @@
     .bg-val-input { width: 100%; max-width: 52px; font-size: 9px; padding: 3px 4px; box-sizing: border-box; text-align: right; }
     .bg-reset-btn { margin-top: 12px; padding: 6px 12px; font-size: 8px; width: 100%; }
 
+    .address-lookup-row { flex-shrink: 0; margin-bottom: 4px; }
+    .address-lookup-input-row { display: flex; gap: 8px; align-items: center; }
+    .address-input {
+      flex: 1; min-width: 0;
+      font-family: inherit; font-size: 9px; letter-spacing: 1px;
+      padding: 5px 8px; border: 1px solid rgba(72,73,75,.3);
+      background: transparent; color: var(--on);
+    }
+    .address-input::placeholder { opacity: .5; }
     .pool-btns { display: flex; gap: 5px; flex-shrink: 0; margin-top: 4px; }
     .pool-btns button { padding: 4px 8px; font-size: 8px; border-width: 1px; }
 
@@ -786,6 +796,15 @@
 
       <!-- Collection -->
       <div class="collection-wrap">
+        <div class="address-lookup-row">
+          <div class="micro" style="margin-bottom:6px;">OR VIEW BY ADDRESS</div>
+          <div class="address-lookup-input-row">
+            <input type="text" id="address-input" class="address-input"
+                   placeholder="0x... or ENS (e.g. vitalik.eth)"
+                   onkeydown="if(event.key==='Enter') fetchByAddress()" />
+            <button onclick="fetchByAddress()">FETCH</button>
+          </div>
+        </div>
         <div class="collection-meta">
           <div class="micro">COLLECTION</div>
           <div class="chain-btns">
@@ -1004,6 +1023,7 @@
 ════════════════════════════════════════════════ */
 let walletAddress   = null;
 let userNFTs        = [];
+let addressLookupMode = false;  // true when viewing NFTs by manual address (not connected)
 let poolIndices     = new Set();
 let pixelData       = [];
 let assignments     = {};
@@ -1069,6 +1089,7 @@ window.dispatchEvent(new Event('eip6963:requestProvider'));
 
 window._onWalletConnected = async (address) => {
   walletAddress = address;
+  addressLookupMode = false;
   delegatedVaults = [];
   const short = address.slice(0,6) + '...' + address.slice(-4);
   document.getElementById('wallet-label').textContent = short;
@@ -1115,6 +1136,49 @@ function closeWalletModal() {
 }
 function handleWalletOverlayClick(e) {
   if (e.target === document.getElementById('wallet-overlay')) closeWalletModal();
+}
+
+async function resolveAddress(input) {
+  const raw = (input || '').trim();
+  if (!raw) return null;
+  if (/^0x[a-fA-F0-9]{40}$/.test(raw)) return raw;
+  if (raw.includes('.')) {
+    try {
+      if (typeof ethers === 'undefined') {
+        console.warn('ENS resolution requires ethers library');
+        return null;
+      }
+      const provider = new ethers.JsonRpcProvider('https://cloudflare-eth.com');
+      const addr = await provider.resolveName(raw);
+      return addr || null;
+    } catch (err) {
+      console.warn('ENS resolve:', err);
+      return null;
+    }
+  }
+  return null;
+}
+
+async function fetchByAddress() {
+  const input = document.getElementById('address-input').value.trim();
+  if (!input) {
+    alert('Enter an address or ENS name.');
+    return;
+  }
+  const addr = await resolveAddress(input);
+  if (!addr) {
+    alert('Could not resolve address. Check format (0x...) or ENS name.');
+    return;
+  }
+  walletAddress = addr;
+  addressLookupMode = true;
+  delegatedVaults = [];
+  const short = addr.slice(0,6) + '...' + addr.slice(-4);
+  document.getElementById('wallet-label').textContent = short;
+  const btn = document.getElementById('connect-btn');
+  btn.textContent = 'CONNECT WALLET';
+  btn.disabled = false;
+  await fetchNFTs();
 }
 
 function renderWalletList() {
@@ -1263,7 +1327,11 @@ function switchChain(chain) {
     btn.classList.toggle('active', btn.dataset.chain === chain);
   });
   if (walletAddress) {
-    fetchDelegateVaults().then(() => fetchNFTs());
+    if (addressLookupMode) {
+      fetchNFTs();
+    } else {
+      fetchDelegateVaults().then(() => fetchNFTs());
+    }
   }
 }
 
