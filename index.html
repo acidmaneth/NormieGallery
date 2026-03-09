@@ -15,7 +15,6 @@
   ╚══════════════════════════════════════════════════════════════╝
   -->
   <script src="./config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <script>
     window.WC_PROJECT_ID = window.WC_PROJECT_ID || 'ac60603ed8eb7ef7c571413d7f5d02ab';
     window.ALCHEMY_API_KEY = window.ALCHEMY_API_KEY || 'demo';
@@ -1177,22 +1176,17 @@ async function resolveAddress(input) {
   if (hex40.test(raw)) return raw;
   if (hex40NoPrefix.test(raw)) return '0x' + raw;
   if (raw.includes('.')) {
-    const rpcs = [];
-    if (window.ALCHEMY_API_KEY && window.ALCHEMY_API_KEY !== 'demo') {
-      rpcs.push(`https://eth-mainnet.g.alchemy.com/v2/${window.ALCHEMY_API_KEY}`);
+    try {
+      const enc = encodeURIComponent(raw);
+      const res = await fetch(`https://ensdata.net/${enc}`, { headers: { accept: 'application/json' } });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const addr = data?.address || data?.wallets?.eth;
+      return addr && /^0x[a-fA-F0-9]{40}$/.test(addr) ? addr : null;
+    } catch (err) {
+      console.warn('ENS resolve:', err);
+      return null;
     }
-    rpcs.push('https://eth.llamarpc.com', 'https://cloudflare-eth.com', 'https://rpc.ankr.com/eth');
-    for (const rpc of rpcs) {
-      try {
-        if (typeof ethers === 'undefined') return null;
-        const provider = new ethers.JsonRpcProvider(rpc);
-        const addr = await provider.resolveName(raw);
-        if (addr) return addr;
-      } catch (err) {
-        console.warn('ENS resolve via', rpc, err);
-      }
-    }
-    return null;
   }
   return null;
 }
