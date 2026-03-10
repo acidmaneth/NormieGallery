@@ -607,7 +607,7 @@
     .res-btn { padding: 6px 12px; font-size: 8px; }
     #export-status { font-size: 8px; letter-spacing: 1.5px; opacity: .6; }
 
-    @media (max-width: 768px) {
+    @media (max-width: 960px) {
       .export-bar {
         position: fixed;
         bottom: 0; left: 0; right: 0;
@@ -742,8 +742,8 @@
     }
     .site-footer img { height: 20px; width: auto; display: block; image-rendering: pixelated; }
 
-    /* ── MOBILE PORTRAIT ── */
-    @media (max-width: 768px) {
+    /* ── MOBILE + FOLDABLE PORTRAIT (single column) ── */
+    @media (max-width: 960px) {
       .app { padding: 16px 16px 96px; gap: 12px; }
       .workspace {
         display: flex;
@@ -756,6 +756,14 @@
       .col-right { min-height: 0; height: auto; }
       .col-left { overflow-y: visible; overflow-x: visible; padding-right: 0; }
       .collection-two-col { grid-template-columns: 1fr; height: 220px; }
+    }
+
+    /* ── SQUARE / NEAR-SQUARE (foldable unfolded, small tablets landscape) ── */
+    @media (min-width: 961px) and (max-width: 1199px) {
+      .app { padding: 20px 28px 60px; gap: 14px; }
+      .workspace { grid-template-columns: 1fr 1fr; gap: 20px; }
+      .col-left { gap: 14px; padding-right: 12px; }
+      .collection-two-col { height: 240px; }
     }
 
     /* ── SECONDARY FONT: Courier New for tools column & modals ── */
