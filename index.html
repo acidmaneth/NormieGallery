@@ -381,8 +381,35 @@
     .bg-panel { flex-shrink: 0; }
     #bg-content { display: flex; flex-direction: column; gap: 8px; }
 
-    /* ── TILE SIZE ── */
+    /* ── TILE SIZE & SCALE ── */
     .tile-size-ctrl { margin-top: 2px; }
+
+    /* Inner image div — receives background-image + transform for scale/bleed effect */
+    .nft-tile-img {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transform-origin: center center;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .scale-random-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 7px;
+      cursor: pointer;
+      font-size: 8px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      opacity: .6;
+      user-select: none;
+    }
+    .scale-random-label:hover { opacity: 1; }
+    .scale-random-label input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
 
     .bg-mode-btns { display: flex; gap: 4px; }
     .bg-mode-btn {
@@ -905,6 +932,17 @@
                    onchange="updateTileSize(this.value)" />
           </div>
           <div class="micro" id="tile-size-label" style="margin-top:4px;opacity:.4;">1×1 PIXEL PER NFT</div>
+          <div class="bg-slider-row" style="margin-top:8px;">
+            <span class="bg-slider-label">MIN SCALE</span>
+            <input type="range" id="nft-scale-slider" min="1" max="3" step="0.05" value="1"
+                   oninput="updateNftScale(this.value)" />
+            <input type="number" class="bg-val-input" id="nft-scale-input" min="1" max="3" step="0.05" value="1.00"
+                   onchange="updateNftScale(this.value)" />
+          </div>
+          <label class="scale-random-label">
+            <input type="checkbox" id="randomize-scale" onchange="toggleRandomizeScale(this.checked)" />
+            RANDOMIZE SCALE
+          </label>
         </div>
       </div>
       <div id="recolor-ctrl" class="recolor-ctrl hidden">
@@ -1158,9 +1196,11 @@ let bgNFT      = null;
 let bgExpanded = false;
 
 // Fill mode: 'nfts' | 'invert' | 'recolor'
-let fillMode      = 'nfts';
-let recolorColor  = '#48494b';
-let maxTileSize   = 1;
+let fillMode       = 'nfts';
+let recolorColor   = '#48494b';
+let maxTileSize    = 1;
+let nftScale       = 1.0;   // min scale (1 = exact cell fit, >1 = image bleeds beyond cell)
+let randomizeScale = false;  // when true each tile gets a random scale between nftScale and 3
 
 // Combine mode pools
 let bgPoolIndices          = new Set();
@@ -1786,17 +1826,35 @@ function loadDemo() {
    PIXEL GRID
 ════════════════════════════════════════════════ */
 function applyTileBg(el, asgn) {
-  const nft = asgn.nft || asgn;
-  const N = asgn.tileSize || 1;
-  const r = asgn.tileRow || 0;
-  const c = asgn.tileCol || 0;
-  const xPct = N === 1 ? 50 : (c / (N - 1)) * 100;
-  const yPct = N === 1 ? 50 : (r / (N - 1)) * 100;
-  const url = nft.image || nft.imageFull || '';
-  el.style.backgroundImage    = url ? `url('${url.replace(/'/g, "\\'")}')` : 'none';
-  el.style.backgroundSize     = `${N * 100}% ${N * 100}%`;
-  el.style.backgroundPosition = `${xPct}% ${yPct}%`;
-  el.style.backgroundRepeat   = 'no-repeat';
+  const nft   = asgn.nft || asgn;
+  const N     = asgn.tileSize || 1;
+  const r     = asgn.tileRow  || 0;
+  const c     = asgn.tileCol  || 0;
+  const scale = randomizeScale ? (asgn.scale ?? nftScale) : nftScale;
+  const xPct  = N === 1 ? 50 : (c / (N - 1)) * 100;
+  const yPct  = N === 1 ? 50 : (r / (N - 1)) * 100;
+  const url   = nft.image || nft.imageFull || '';
+
+  // Clear any direct background that may have been set in an earlier render
+  el.style.backgroundImage = 'none';
+
+  // Get or create the inner image div (receives background + transform)
+  let inner = el.querySelector('.nft-tile-img');
+  if (!inner) {
+    inner = document.createElement('div');
+    inner.className = 'nft-tile-img';
+    el.appendChild(inner);
+  }
+  inner.style.backgroundImage    = url ? `url('${url.replace(/'/g, "\\'")}')` : 'none';
+  inner.style.backgroundSize     = `${N * 100}% ${N * 100}%`;
+  inner.style.backgroundPosition = `${xPct}% ${yPct}%`;
+  inner.style.backgroundRepeat   = 'no-repeat';
+  inner.style.transform          = scale > 1 ? `scale(${scale.toFixed(3)})` : '';
+
+  // Let image bleed past cell edges when scaled; lift above neighbours
+  el.style.overflow = scale > 1 ? 'visible' : '';
+  el.style.zIndex   = scale > 1 ? String(Math.round(scale)) : '';
+
   el.title = [nft.collection, nft.name].filter(Boolean).join(' — ');
 }
 
@@ -1835,9 +1893,13 @@ function renderGrid() {
 function refreshCell(i) {
   const cell = document.querySelector(`.cell[data-i="${i}"]`);
   if (!cell) return;
-  cell.style.backgroundImage = '';
-  cell.style.backgroundSize = '';
+  const inner = cell.querySelector('.nft-tile-img');
+  if (inner) inner.remove();
+  cell.style.backgroundImage    = '';
+  cell.style.backgroundSize     = '';
   cell.style.backgroundPosition = '';
+  cell.style.overflow = '';
+  cell.style.zIndex   = '';
   cell.title = '';
   const asgn = assignments[i];
   if (asgn) {
@@ -1911,27 +1973,30 @@ function placeTiles(pool, fillOnPixels) {
           if (pixelData[ni] !== targetVal || assigned.has(ni)) fits = false;
         }
       if (fits) {
-        const nft = pool[Math.floor(Math.random() * pool.length)];
+        const nft   = pool[Math.floor(Math.random() * pool.length)];
+        const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
         for (let dr = 0; dr < s; dr++)
           for (let dc = 0; dc < s; dc++) {
             const ni = (row + dr) * 40 + (col + dc);
-            assignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc };
+            assignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc, scale };
             assigned.add(ni);
           }
         return;
       }
     }
     // Absolute 1x1 fallback
-    const nft = pool[Math.floor(Math.random() * pool.length)];
-    assignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+    const nft   = pool[Math.floor(Math.random() * pool.length)];
+    const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
+    assignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale };
     assigned.add(i);
   });
 
   // Safety pass
   pixelData.forEach((val, i) => {
     if (val === targetVal && !assignments[i]) {
-      const nft = pool[Math.floor(Math.random() * pool.length)];
-      assignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+      const nft   = pool[Math.floor(Math.random() * pool.length)];
+      const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
+      assignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale };
     }
   });
 }
@@ -1971,6 +2036,20 @@ function clearAll() {
   assignments = {};
   if (fillMode === 'recolor') recolorColor = '';
   renderGrid();
+}
+
+function updateNftScale(val) {
+  const v = Math.min(3, Math.max(1, parseFloat(val) || 1));
+  nftScale = v;
+  document.getElementById('nft-scale-slider').value = v.toFixed(2);
+  document.getElementById('nft-scale-input').value  = v.toFixed(2);
+  // In non-random mode, re-render immediately so user sees live preview
+  if (Object.keys(assignments).length || Object.keys(bgAssignments).length) renderGrid();
+}
+
+function toggleRandomizeScale(checked) {
+  randomizeScale = checked;
+  if (Object.keys(assignments).length || Object.keys(bgAssignments).length) renderGrid();
 }
 
 /* ════════════════════════════════════════════════
@@ -2125,24 +2204,27 @@ function placeBgTiles(pool) {
           if (pixelData[ni] !== 0 || assigned.has(ni)) fits = false;
         }
       if (fits) {
-        const nft = pool[Math.floor(Math.random() * pool.length)];
+        const nft   = pool[Math.floor(Math.random() * pool.length)];
+        const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
         for (let dr = 0; dr < s; dr++)
           for (let dc = 0; dc < s; dc++) {
             const ni = (row + dr) * 40 + (col + dc);
-            bgAssignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc };
+            bgAssignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc, scale };
             assigned.add(ni);
           }
         return;
       }
     }
-    const nft = pool[Math.floor(Math.random() * pool.length)];
-    bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+    const nft   = pool[Math.floor(Math.random() * pool.length)];
+    const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
+    bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale };
     assigned.add(i);
   });
   pixelData.forEach((val, i) => {
     if (val === 0 && !bgAssignments[i]) {
-      const nft = pool[Math.floor(Math.random() * pool.length)];
-      bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+      const nft   = pool[Math.floor(Math.random() * pool.length)];
+      const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
+      bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale };
     }
   });
 }
@@ -2202,7 +2284,7 @@ function openModal(cellIdx) {
     img.src = nft.image; img.alt = nft.name; img.loading = 'lazy';
     card.appendChild(img);
     card.addEventListener('click', () => {
-      assignments[activeCellIdx] = { nft, tileSize: 1, tileRow: 0, tileCol: 0 };
+      assignments[activeCellIdx] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale: nftScale };
       refreshCell(activeCellIdx);
       closeModal();
     });
@@ -2474,9 +2556,13 @@ async function exportCanvas(size) {
 
     const asgn = assignments[i] || (!isOn && bgMode === 'tiles' ? bgAssignments[i] : null);
     if (asgn) {
-      const nft = asgn.nft || asgn;
-      const N   = asgn.tileSize || 1;
-      const drawn = await drawImageToCanvas(ctx, nft.imageFull || nft.image, x, y, cell, cell, N, asgn.tileRow || 0, asgn.tileCol || 0);
+      const nft        = asgn.nft || asgn;
+      const N          = asgn.tileSize || 1;
+      const asgnScale  = randomizeScale ? (asgn.scale ?? nftScale) : nftScale;
+      const sw         = cell * asgnScale;
+      const ox         = x - (sw - cell) / 2;
+      const oy         = y - (sw - cell) / 2;
+      const drawn = await drawImageToCanvas(ctx, nft.imageFull || nft.image, ox, oy, sw, sw, N, asgn.tileRow || 0, asgn.tileCol || 0);
       if (!drawn) { ctx.fillStyle = isOn ? '#48494b' : '#e3e5e4'; ctx.fillRect(x, y, cell, cell); }
       return;
     }
