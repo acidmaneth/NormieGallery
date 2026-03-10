@@ -1831,7 +1831,9 @@ function applyTileBg(el, asgn) {
   const N     = asgn.tileSize || 1;
   const r     = asgn.tileRow  || 0;
   const c     = asgn.tileCol  || 0;
-  const scale = randomizeScale ? (asgn.scale ?? nftScale) : nftScale;
+  // bg tiles always use their frozen scale; main tiles follow global nftScale (or per-tile random)
+  const isBg  = !!asgn.isBgTile;
+  const scale = isBg ? (asgn.scale ?? 1) : (randomizeScale ? (asgn.scale ?? nftScale) : nftScale);
   const xPct  = N === 1 ? 50 : (c / (N - 1)) * 100;
   const yPct  = N === 1 ? 50 : (r / (N - 1)) * 100;
   const url   = nft.image || nft.imageFull || '';
@@ -1852,9 +1854,11 @@ function applyTileBg(el, asgn) {
   inner.style.backgroundRepeat   = 'no-repeat';
   inner.style.transform          = scale > 1 ? `scale(${scale.toFixed(3)})` : '';
 
-  // Let image bleed past cell edges when scaled; lift above neighbours
+  // bg tiles sit beneath the Normie canvas (z 1-3); main tiles always on top (z 10+)
   el.style.overflow = scale > 1 ? 'visible' : '';
-  el.style.zIndex   = scale > 1 ? String(Math.round(scale)) : '';
+  el.style.zIndex   = isBg
+    ? (scale > 1 ? String(Math.round(scale)) : '')
+    : (scale > 1 ? String(10 + Math.round(scale)) : '10');
 
   el.title = [nft.collection, nft.name].filter(Boolean).join(' — ');
 }
@@ -2223,20 +2227,20 @@ function placeBgTiles(pool) {
         for (let dr = 0; dr < s; dr++)
           for (let dc = 0; dc < s; dc++) {
             const ni = (row + dr) * 40 + (col + dc);
-            bgAssignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc, scale: nftScale };
+            bgAssignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc, scale: nftScale, isBgTile: true };
             assigned.add(ni);
           }
         return;
       }
     }
     const nft = pool[Math.floor(Math.random() * pool.length)];
-    bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale: nftScale };
+    bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale: nftScale, isBgTile: true };
     assigned.add(i);
   });
   pixelData.forEach((val, i) => {
     if (val === 0 && !bgAssignments[i]) {
       const nft = pool[Math.floor(Math.random() * pool.length)];
-      bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale: nftScale };
+      bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale: nftScale, isBgTile: true };
     }
   });
 }
@@ -2541,7 +2545,29 @@ async function exportCanvas(size) {
     ctx.fillRect(0, 0, dim, dim);
   }
 
-  // ── Tint overlay ──
+  // ── Phase 1: background NFT tiles (off-pixels only, drawn before tint + Normie canvas) ──
+  if (bgMode === 'tiles') {
+    const bgJobs = pixelData.map(async (val, i) => {
+      if (val === 1) return; // on-pixels handled in phase 3
+      const bgAsgn = bgAssignments[i];
+      if (!bgAsgn) return;
+      const nft = bgAsgn.nft || bgAsgn;
+      const N   = bgAsgn.tileSize || 1;
+      const x   = (i % 40) * cell;
+      const y   = Math.floor(i / 40) * cell;
+      const sw  = cell * (bgAsgn.scale ?? 1); // bg tiles never inherit global nftScale
+      const ox  = x - (sw - cell) / 2;
+      const oy  = y - (sw - cell) / 2;
+      const drawn = await drawImageToCanvas(ctx, nft.imageFull || nft.image, ox, oy, sw, sw, N, bgAsgn.tileRow || 0, bgAsgn.tileCol || 0);
+      if (!drawn) { ctx.fillStyle = '#e3e5e4'; ctx.fillRect(x, y, cell, cell); }
+    });
+    const batch = 8;
+    for (let b = 0; b < bgJobs.length; b += batch) {
+      await Promise.all(bgJobs.slice(b, b + batch));
+    }
+  }
+
+  // ── Tint overlay (sits on top of background + bg tiles, beneath Normie canvas) ──
   if (bgMode !== 'none') {
     const tintColor = document.getElementById('bg-tint-color').value;
     const tintOp    = parseInt(document.getElementById('bg-tint-opacity').value) / 100;
@@ -2554,7 +2580,7 @@ async function exportCanvas(size) {
     }
   }
 
-  // ── All cells ──
+  // ── Phase 2 (main): Normie canvas assignments always drawn on top of background ──
   const drawJobs = pixelData.map(async (val, i) => {
     const isOn = val === 1;
     const x = (i % 40) * cell;
@@ -2566,25 +2592,25 @@ async function exportCanvas(size) {
       return;
     }
 
-    const asgn = assignments[i] || (!isOn && bgMode === 'tiles' ? bgAssignments[i] : null);
+    const asgn = assignments[i]; // bg tiles already drawn in phase 1; never mix here
     if (asgn) {
-      const nft        = asgn.nft || asgn;
-      const N          = asgn.tileSize || 1;
-      const asgnScale  = randomizeScale ? (asgn.scale ?? nftScale) : nftScale;
-      const sw         = cell * asgnScale;
-      const ox         = x - (sw - cell) / 2;
-      const oy         = y - (sw - cell) / 2;
+      const nft       = asgn.nft || asgn;
+      const N         = asgn.tileSize || 1;
+      // main tiles: respect randomizeScale; bg tile assignments never reach here
+      const asgnScale = randomizeScale ? (asgn.scale ?? nftScale) : nftScale;
+      const sw  = cell * asgnScale;
+      const ox  = x - (sw - cell) / 2;
+      const oy  = y - (sw - cell) / 2;
       const drawn = await drawImageToCanvas(ctx, nft.imageFull || nft.image, ox, oy, sw, sw, N, asgn.tileRow || 0, asgn.tileCol || 0);
       if (!drawn) { ctx.fillStyle = isOn ? '#48494b' : '#e3e5e4'; ctx.fillRect(x, y, cell, cell); }
       return;
     }
 
-    // No assignment
+    // No assignment: fill on-pixels with fallback colour; off-pixels already covered
     if (isOn) {
       ctx.fillStyle = '#48494b';
       ctx.fillRect(x, y, cell, cell);
     }
-    // Off-pixels with no assignment: background already drawn beneath, leave transparent
   });
 
   const batch = 8;
