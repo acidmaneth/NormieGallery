@@ -953,8 +953,9 @@
         </div>
       </div>
       <div class="action-btns">
-        <button id="btn-auto" onclick="autoFill()">AUTO POPULATE</button>
-        <button id="btn-shuffle" onclick="shuffleFill()">SHUFFLE</button>
+        <button id="btn-auto"     onclick="autoFill()">AUTO POPULATE</button>
+        <button id="btn-fill-all" onclick="populateAll()">POPULATE ALL</button>
+        <button id="btn-shuffle"  onclick="shuffleFill()">SHUFFLE</button>
         <button onclick="clearAll()">CLEAR</button>
       </div>
 
@@ -1881,7 +1882,10 @@ function renderGrid() {
         cell.classList.add('filled');
         applyTileBg(cell, asgn);
       }
-      const clickable = (fillMode === 'nfts' && isOn) || (fillMode === 'invert' && !isOn);
+      // Clickable: any filled cell (re-assign), or empty cells that match the fill mode
+      const clickable = !!assignments[i] ||
+                        (fillMode === 'nfts'   && isOn  && !asgn) ||
+                        (fillMode === 'invert' && !isOn && !asgn);
       if (clickable) {
         cell.addEventListener('click', () => { if (!pan.moved) openModal(i); });
       }
@@ -1937,8 +1941,9 @@ function setFillMode(mode) {
   });
   const isRecolor = mode === 'recolor';
   document.getElementById('recolor-ctrl').classList.toggle('hidden', !isRecolor);
-  document.getElementById('btn-auto').style.display    = isRecolor ? 'none' : '';
-  document.getElementById('btn-shuffle').style.display = isRecolor ? 'none' : '';
+  document.getElementById('btn-auto').style.display     = isRecolor ? 'none' : '';
+  document.getElementById('btn-fill-all').style.display = isRecolor ? 'none' : '';
+  document.getElementById('btn-shuffle').style.display  = isRecolor ? 'none' : '';
   const tileCtrl = document.getElementById('tile-size-ctrl');
   if (tileCtrl) tileCtrl.style.display = isRecolor ? 'none' : '';
   assignments = {};
@@ -2007,6 +2012,16 @@ function autoFill() {
   if (!pool.length) { alert('Select at least one NFT from your collection(s).'); return; }
   assignments = {};
   placeTiles(pool, fillMode !== 'invert');
+  renderGrid();
+}
+
+function populateAll() {
+  if (!pixelData.length) { alert('Load a Normie first.'); return; }
+  const pool = getPool();
+  if (!pool.length) { alert('Select at least one NFT from your collection(s).'); return; }
+  assignments = {};
+  placeTiles(pool, true);   // fill all on-pixels (Normie body)
+  placeTiles(pool, false);  // fill all off-pixels (surrounding space)
   renderGrid();
 }
 
@@ -2204,27 +2219,24 @@ function placeBgTiles(pool) {
           if (pixelData[ni] !== 0 || assigned.has(ni)) fits = false;
         }
       if (fits) {
-        const nft   = pool[Math.floor(Math.random() * pool.length)];
-        const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
+        const nft = pool[Math.floor(Math.random() * pool.length)];
         for (let dr = 0; dr < s; dr++)
           for (let dc = 0; dc < s; dc++) {
             const ni = (row + dr) * 40 + (col + dc);
-            bgAssignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc, scale };
+            bgAssignments[ni] = { nft, tileSize: s, tileRow: dr, tileCol: dc, scale: nftScale };
             assigned.add(ni);
           }
         return;
       }
     }
-    const nft   = pool[Math.floor(Math.random() * pool.length)];
-    const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
-    bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale };
+    const nft = pool[Math.floor(Math.random() * pool.length)];
+    bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale: nftScale };
     assigned.add(i);
   });
   pixelData.forEach((val, i) => {
     if (val === 0 && !bgAssignments[i]) {
-      const nft   = pool[Math.floor(Math.random() * pool.length)];
-      const scale = randomizeScale ? nftScale + Math.random() * Math.max(0, 3 - nftScale) : nftScale;
-      bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale };
+      const nft = pool[Math.floor(Math.random() * pool.length)];
+      bgAssignments[i] = { nft, tileSize: 1, tileRow: 0, tileCol: 0, scale: nftScale };
     }
   });
 }
