@@ -1514,6 +1514,14 @@ function switchChain(chain) {
 /* ════════════════════════════════════════════════
    NFT FETCHING — Alchemy NFT API (wallet + delegated vaults)
 ════════════════════════════════════════════════ */
+// Normalise raw NFT image URLs so browsers can always load them
+function normalizeNFTUrl(url) {
+  if (!url) return '';
+  if (url.startsWith('ipfs://')) return `https://ipfs.io/ipfs/${url.slice(7)}`;
+  if (url.startsWith('ar://'))   return `https://arweave.net/${url.slice(5)}`;
+  return url;
+}
+
 async function fetchNFTsForOwner(addr) {
   const apiKey = window.ALCHEMY_API_KEY || 'demo';
   const network = CHAINS[selectedChain].alchemyNetwork;
@@ -1530,14 +1538,23 @@ async function fetchNFTsForOwner(addr) {
     const res = await fetch(url.toString(), { headers: { accept: 'application/json' } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const batch = (data.ownedNfts || []).filter(t => !t.contract?.isSpam).map(t => ({
-      tokenId:    t.tokenId,
-      name:       t.name || `#${t.tokenId}`,
-      collection: t.collection?.name || t.contract?.openSeaMetadata?.collectionName || t.contract?.address || '',
-      image:      t.image?.thumbnailUrl || t.image?.cachedUrl || t.image?.pngUrl || t.image?.originalUrl || '',
-      imageFull:  t.image?.cachedUrl || t.image?.pngUrl || t.image?.originalUrl || t.image?.thumbnailUrl || '',
-      contract:   (t.contract?.address || '').toLowerCase(),
-    })).filter(n => n.image && n.contract);
+    const batch = (data.ownedNfts || []).filter(t => !t.contract?.isSpam).map(t => {
+      // Prefer the original source URL (always up-to-date) over Alchemy's cached copies
+      const orig      = normalizeNFTUrl(t.image?.originalUrl  || '');
+      const cached    = normalizeNFTUrl(t.image?.cachedUrl    || '');
+      const png       = normalizeNFTUrl(t.image?.pngUrl       || '');
+      const thumbnail = normalizeNFTUrl(t.image?.thumbnailUrl || '');
+      return {
+        tokenId:    t.tokenId,
+        name:       t.name || `#${t.tokenId}`,
+        collection: t.collection?.name || t.contract?.openSeaMetadata?.collectionName || t.contract?.address || '',
+        // Grid display: thumbnail is fast; fall back to original if thumbnail missing
+        image:      thumbnail || orig || cached || png,
+        // High-res / export: original source is freshest; fall back to Alchemy CDN
+        imageFull:  orig || png || cached || thumbnail,
+        contract:   (t.contract?.address || '').toLowerCase(),
+      };
+    }).filter(n => n.image && n.contract);
     all = all.concat(batch);
     pageKey = data.pageKey || null;
     if (!pageKey) break;
