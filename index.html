@@ -15,6 +15,14 @@
   ╚══════════════════════════════════════════════════════════════╝
   -->
   <script src="./config.js"></script>
+  <script type="module">
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js');
+      window.gifenc = mod;
+    } catch(e) {
+      console.warn('[PetCenter] gifenc failed to load:', e);
+    }
+  </script>
   <script>
     window.WC_PROJECT_ID = window.WC_PROJECT_ID || 'ac60603ed8eb7ef7c571413d7f5d02ab';
     window.ALCHEMY_API_KEY = window.ALCHEMY_API_KEY || 'demo';
@@ -196,10 +204,10 @@
     /* ── APP SHELL ── */
     .app {
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto auto 1fr;
       height: 100svh;
-      padding: 32px 48px calc(56px + env(safe-area-inset-bottom, 0px));
-      gap: 20px;
+      padding: 28px 48px calc(56px + env(safe-area-inset-bottom, 0px));
+      gap: 0;
     }
 
     /* ── TOP BAR ── */
@@ -208,7 +216,27 @@
       align-items: baseline;
       justify-content: space-between;
       flex-shrink: 0;
+      margin-bottom: 8px;
     }
+
+    /* ── NORMIE BAR (always-visible loader) ── */
+    .normie-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+      padding: 7px 0 9px;
+      border-bottom: 1.5px solid rgba(72,73,75,.15);
+      margin-bottom: 0;
+    }
+    .normie-bar .micro { flex-shrink: 0; }
+    .normie-bar .canvas-row { display: flex; align-items: flex-end; gap: 8px; flex: 0 0 auto; }
+    .normie-bar #normie-id { width: 80px; font-size: 14px; padding: 4px 2px; }
+    .normie-bar button     { padding: 5px 12px; }
+    .normie-bar .version-select { font-size: 9px; padding: 3px 4px; }
+    #normie-version-wrap { display: flex !important; align-items: center; gap: 6px; }
+    #normie-version-wrap .micro { opacity: .45; }
+    #normie-bar-info { font-size: 8px; letter-spacing: 1.5px; opacity: .5; text-transform: uppercase; margin-left: 4px; }
     .site-title {
       font-size: 18px;
       letter-spacing: 5px;
@@ -221,12 +249,111 @@
     #disconnect-btn:hover { opacity: 1; }
     #wallet-hint { font-size: 8px; letter-spacing: 1.5px; opacity: .7; display: none; }
 
+    /* ── PAGE NAVIGATION ── */
+    .page-nav {
+      display: flex;
+      flex-shrink: 0;
+      border-bottom: 1.5px solid rgba(72,73,75,.15);
+      gap: 0;
+      margin-bottom: 0;
+    }
+    .page-tab {
+      font-family: 'Robotastic', 'Courier New', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: transparent;
+      color: var(--on);
+      border: none;
+      border-bottom: 2.5px solid transparent;
+      margin-bottom: -1.5px;
+      padding: 8px 20px;
+      cursor: pointer;
+      opacity: .38;
+      transition: opacity .1s;
+    }
+    .page-tab:hover  { opacity: .7; background: transparent; color: var(--on); }
+    .page-tab.active { opacity: 1;  border-bottom-color: var(--on); }
+
+    /* ── PAGES CONTAINER ── */
+    .pages-container { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .page            { display: none; flex: 1; min-height: 0; }
+    .page.active     { display: flex; flex-direction: column; }
+
     /* ── TWO-COLUMN WORKSPACE ── */
     .workspace {
       display: grid;
       grid-template-columns: 5fr 4fr;
       gap: 32px;
       overflow: hidden;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── PET CENTER LAYOUT ── */
+    .pet-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .pet-sidebar {
+      font-family: 'Courier New', monospace;
+      overflow-y: auto;
+      padding: 16px 16px 24px;
+      border-right: 1.5px solid rgba(72,73,75,.13);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pet-sidebar .micro { letter-spacing: 1.8px; }
+    .pet-canvas-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: var(--off);
+    }
+    #pet-canvas {
+      image-rendering: pixelated;
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      cursor: default;
+    }
+    .pet-list-scroll { overflow-y: auto; max-height: 340px; -webkit-overflow-scrolling: touch; }
+    .pet-list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(72,73,75,.08);
+    }
+    .pet-list-thumb {
+      width: 34px; height: 34px;
+      object-fit: cover;
+      flex-shrink: 0;
+      image-rendering: pixelated;
+      border: 1px solid rgba(72,73,75,.12);
+    }
+    .pet-list-label  { flex: 1; font-size: 9px; letter-spacing: .7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
+    .pet-list-sub    { font-size: 7px; opacity: .45; margin-top: 2px; letter-spacing: .5px; }
+    .pet-toggle-btn  { font-size: 8px; padding: 4px 9px; flex-shrink: 0; letter-spacing: .8px; }
+    .pet-no-msg {
+      font-family: 'Courier New', monospace;
+      font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+      opacity: .4; text-align: center; line-height: 2.4; padding: 32px 16px;
+    }
+    .pet-section-head { font-size: 8px; letter-spacing: 2px; opacity: .55; text-transform: uppercase; margin-bottom: 2px; }
+    .pet-ctrl-row { display: flex; align-items: center; gap: 8px; }
+    .pet-ctrl-row .bg-slider-label { font-size: 8px; letter-spacing: 1px; white-space: nowrap; }
+    .pet-spawn-btn { width: 100%; margin-top: 4px; }
+    @media (max-width: 960px) {
+      .pet-layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .pet-sidebar { border-right: none; border-bottom: 1.5px solid rgba(72,73,75,.13); max-height: 280px; }
+      .pet-list-scroll { max-height: 140px; }
     }
 
     /* ── LEFT COLUMN ── */
@@ -772,7 +899,8 @@
 
     /* ── MOBILE + FOLDABLE PORTRAIT (single column) ── */
     @media (max-width: 960px) {
-      .app { padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px)); gap: 12px; }
+      .app { padding: 14px 14px calc(88px + env(safe-area-inset-bottom, 0px)); gap: 0; grid-template-rows: auto auto auto 1fr; }
+      .topbar { margin-bottom: 4px; }
       .workspace {
         display: flex;
         flex-direction: column;
@@ -788,7 +916,8 @@
 
     /* ── SQUARE / NEAR-SQUARE (foldable unfolded, small tablets landscape) ── */
     @media (min-width: 961px) and (max-width: 1199px) {
-      .app { padding: 20px 28px calc(80px + env(safe-area-inset-bottom, 0px)); gap: 14px; }
+      .app { padding: 18px 24px calc(80px + env(safe-area-inset-bottom, 0px)); gap: 0; grid-template-rows: auto auto auto 1fr; }
+      .topbar { margin-bottom: 6px; }
       .workspace { grid-template-columns: 1fr 1fr; gap: 20px; }
       .col-left { gap: 14px; padding-right: 12px; }
       .collection-two-col { height: 240px; }
@@ -821,6 +950,32 @@
     .col-left .collection-filter-item { letter-spacing: .8px; }
     .col-left .micro                  { letter-spacing: 1.8px; }
     .col-left .chain-btn              { letter-spacing: .8px; }
+
+    /* ── PET NFT CARDS ── */
+    .pet-nft-card {
+      position: relative;
+      cursor: pointer;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border: 2px solid transparent;
+      transition: border-color .08s, opacity .08s;
+    }
+    .pet-nft-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pet-nft-card.inactive { opacity: .28; }
+    .pet-nft-card.active   { border-color: var(--on); }
+    .pet-nft-card .pet-card-check {
+      position: absolute; bottom: 2px; right: 2px;
+      width: 10px; height: 10px;
+      background: var(--on);
+      display: none;
+    }
+    .pet-nft-card.active .pet-card-check { display: block; }
+
+    /* ── MOBILE pet bar + normie bar ── */
+    @media (max-width: 960px) {
+      .normie-bar { gap: 7px; padding: 5px 0 7px; }
+      .normie-bar #normie-id { width: 60px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -845,25 +1000,37 @@
     </div>
   </div>
 
+  <!-- NORMIE BAR — always visible across all pages -->
+  <div class="normie-bar">
+    <span class="micro">NORMIE</span>
+    <div class="canvas-row">
+      <input type="number" id="normie-id" placeholder="0–9999" min="0" max="9999" value="0"
+             onfocus="this.select()" onkeydown="if(event.key==='Enter') loadNormie()" />
+      <button onclick="loadNormie()">LOAD</button>
+    </div>
+    <div id="normie-version-wrap" style="display:none;">
+      <span class="micro">VER</span>
+      <select id="normie-version-select" class="version-select" onchange="selectNormieVersion(this.value)"></select>
+    </div>
+    <span id="normie-bar-info"></span>
+  </div>
+
+  <!-- PAGE NAVIGATION -->
+  <div class="page-nav">
+    <button class="page-tab active" id="tab-tiles" onclick="switchPage('tiles')">TILES</button>
+    <button class="page-tab" id="tab-pet"   onclick="switchPage('pet')">PET CENTER</button>
+  </div>
+
+  <!-- PAGES -->
+  <div class="pages-container">
+
+  <!-- PAGE: TILES -->
+  <div id="page-tiles" class="page active">
   <!-- WORKSPACE -->
   <div class="workspace">
 
     <!-- LEFT COLUMN -->
     <div class="col-left">
-
-      <!-- Normie canvas input -->
-      <div>
-        <div class="micro" style="margin-bottom:10px;">NORMIE CANVAS</div>
-        <div class="canvas-row">
-          <input type="number" id="normie-id" placeholder="0 – 9999" min="0" max="9999" value="0"
-                 onfocus="this.select()" onkeydown="if(event.key==='Enter') loadNormie()" />
-          <button onclick="loadNormie()">LOAD</button>
-        </div>
-        <div class="normie-version-wrap" id="normie-version-wrap" style="display:none;">
-          <div class="micro" style="margin:8px 0 4px;">VERSION</div>
-          <select id="normie-version-select" class="version-select" onchange="selectNormieVersion(this.value)"></select>
-        </div>
-      </div>
 
       <!-- Collection -->
       <div class="collection-wrap">
@@ -1114,6 +1281,99 @@
     </div><!-- /col-right -->
 
   </div><!-- /workspace -->
+  </div><!-- /page-tiles -->
+
+  <!-- PAGE: PET CENTER -->
+  <div id="page-pet" class="page">
+    <div class="pet-layout">
+
+      <!-- Sidebar -->
+      <div class="pet-sidebar">
+        <div class="micro">PET CENTER</div>
+
+        <!-- Controls: speed + size -->
+        <div>
+          <div class="pet-section-head" style="margin-bottom:8px;">CONTROLS</div>
+          <div class="bg-slider-row">
+            <span class="bg-slider-label">SPEED</span>
+            <input type="range" id="pet-speed-slider" min="1" max="10" value="4"
+                   oninput="updatePetSpeed(this.value)" />
+            <input type="number" class="bg-val-input" id="pet-speed-input" min="1" max="10" value="4"
+                   onchange="updatePetSpeed(this.value)" />
+          </div>
+          <div class="bg-slider-row" style="margin-top:8px;">
+            <span class="bg-slider-label">SIZE</span>
+            <input type="range" id="pet-size-slider" min="1" max="5" step="0.1" value="2.2"
+                   oninput="updatePetSize(this.value)" />
+            <input type="number" class="bg-val-input" id="pet-size-input" min="1" max="5" step="0.1" value="2.2"
+                   onchange="updatePetSize(this.value)" />
+          </div>
+          <div class="bg-slider-row" style="margin-top:8px;">
+            <span class="bg-slider-label">COPIES</span>
+            <input type="range" id="pet-copies-slider" min="1" max="20" value="1"
+                   oninput="updatePetCopies(this.value)" />
+            <input type="number" class="bg-val-input" id="pet-copies-input" min="1" max="20" value="1"
+                   onchange="updatePetCopies(this.value)" />
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="pet-spawn-btn" style="flex:1;" onclick="respawnPets()">RESPAWN</button>
+          <button class="pet-spawn-btn" style="flex:1;" onclick="shufflePets()">SHUFFLE</button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="pet-spawn-btn" style="flex:1;" onclick="exportPetGIF()" id="pet-gif-btn">EXPORT 5s GIF</button>
+          <span id="pet-export-status" style="font-size:8px;letter-spacing:1.2px;opacity:.6;white-space:nowrap;"></span>
+        </div>
+
+        <!-- Pet NFT selector: collection filter + NFT grid -->
+        <div class="collection-wrap" style="flex:1;min-height:0;">
+          <div class="collection-meta" style="margin-bottom:4px;">
+            <div class="micro" id="pet-list-head">PETS</div>
+          </div>
+
+          <div class="collection-two-col" style="height:260px;">
+            <!-- Collection filter -->
+            <div class="collection-filter-col">
+              <div class="collection-filter-wrap">
+                <div class="micro" style="margin-bottom:5px;">COLLECTIONS</div>
+                <input type="search" id="pet-collection-search" class="collection-search-input"
+                       placeholder="SEARCH..."
+                       oninput="onPetCollectionSearch(this.value)" />
+                <div class="collection-filter-actions">
+                  <button class="filter-action-btn" onclick="petTickAllCollections()">ALL</button>
+                  <button class="filter-action-btn" onclick="petUntickAllCollections()">NONE</button>
+                </div>
+                <div class="collection-filter-list" id="pet-collection-filter-list"></div>
+              </div>
+            </div>
+            <!-- NFT grid -->
+            <div class="collection-nft-col">
+              <div class="nft-scroll">
+                <div class="nft-container" id="pet-nft-container"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pool-btns">
+            <button onclick="petSelectAllNFTs()">ALL</button>
+            <button onclick="petDeselectAllNFTs()">NONE</button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Canvas area -->
+      <div class="pet-canvas-wrap">
+        <div id="pet-no-normie" class="pet-no-msg" style="display:none;">LOAD A NORMIE IN THE<br>TILES TAB FIRST</div>
+        <canvas id="pet-canvas" style="display:none;"></canvas>
+      </div>
+
+    </div>
+  </div><!-- /page-pet -->
+
+  </div><!-- /pages-container -->
 </div><!-- /app -->
 
 <!-- WALLET SELECTION MODAL -->
@@ -1588,6 +1848,11 @@ async function fetchNFTs() {
     renderCollection();
     renderBgCollectionList();
     renderBgNFTs();
+    // Refresh pet collection picker
+    petAllNFTs = userNFTs.filter(isPetNFT);
+    buildPetCollectionState();
+    renderPetCollectionFilter();
+    renderPetNFTGrid();
   } catch (err) {
     console.error('NFT fetch:', err);
     setCollection(`<div class="empty">COULD NOT LOAD ${CHAINS[selectedChain].label} NFTS.<br>SET \`window.ALCHEMY_API_KEY\` IF DEMO LIMITS ARE HIT.</div>`);
@@ -1776,6 +2041,9 @@ async function loadNormie() {
     selectedNormieVersion = 'current';
     renderNormieVersionSelector();
     renderGrid();
+    updateNormieBarInfo();
+    // Refresh pet walls if Pet Center is open
+    if (currentPage === 'pet') { buildPetWalls(); spawnActivePets(); }
   } catch (err) {
     console.error('Normie load:', err);
     alert(`Could not load Normie #${id}. Check console for details.`);
@@ -2715,6 +2983,712 @@ const pan = { on: false, x0: 0, y0: 0, sx: 0, sy: 0, moved: false };
     gs.classList.remove('panning');
   });
 })();
+
+/* ════════════════════════════════════════════════
+   PAGE NAVIGATION
+════════════════════════════════════════════════ */
+let currentPage = 'tiles';
+
+function switchPage(page) {
+  if (currentPage === page) return;
+  currentPage = page;
+  document.getElementById('page-tiles').classList.toggle('active', page === 'tiles');
+  document.getElementById('page-pet').classList.toggle('active', page === 'pet');
+  document.getElementById('tab-tiles').classList.toggle('active', page === 'tiles');
+  document.getElementById('tab-pet').classList.toggle('active', page === 'pet');
+  if (page === 'pet') {
+    setTimeout(initPetCenter, 60); // allow DOM to paint first
+  } else {
+    stopPetLoop();
+  }
+}
+
+/* ════════════════════════════════════════════════
+   PET CENTER — constants & state
+════════════════════════════════════════════════ */
+const MOONCAT_WALKCYCLE_CID = 'bafybeib5iedrzr7unbp4zq6rkrab3caik7nw7rfzlcfvu4xqs6bfk7dgje';
+// Acclimated MoonCats ERC-721 contract (Ethereum mainnet)
+const MOONCAT_CONTRACTS = new Set(['0xc3f733ca98e0dad0386979eb96fb1722a1a05e69']);
+
+let petAnimId    = null;
+let petEntities  = [];
+let petCellPx    = 12;      // canvas px per Normie grid cell
+let petSpeedMult = 4;       // 1–10 slider value
+let petSizeMult  = 2.2;     // pet visual size as multiple of petCellPx
+let petCopies    = 1;       // how many instances to spawn per active pet NFT
+let lastPetTs    = null;
+
+// Wall map: true = blocked, rebuilt whenever a Normie loads or page switches
+let petWalls = [];          // 1600-length boolean array
+
+// Pet collection selector state
+let petAllNFTs             = [];   // all Mooncat/cc0mon NFTs from wallet
+let petSelectedCollections = new Set(); // collections currently shown
+let petActiveIndices       = new Set(); // indices into petAllNFTs that are "spawned"
+let petCollectionSearchQuery = '';
+
+function isMooncatNFT(nft) {
+  return MOONCAT_CONTRACTS.has(nft.contract) ||
+         (nft.collection || '').toLowerCase().includes('mooncat');
+}
+function isCc0monNFT(nft) {
+  return (nft.collection || '').toLowerCase().includes('cc0mon');
+}
+function isPetNFT(nft) { return isMooncatNFT(nft) || isCc0monNFT(nft); }
+
+/* ── Update the normie-bar info label ── */
+function updateNormieBarInfo() {
+  const el = document.getElementById('normie-bar-info');
+  if (!el) return;
+  el.textContent = currentNormieId !== null ? `· #${currentNormieId} LOADED` : '';
+}
+
+/* ── Build the wall map from current pixelData ── */
+function buildPetWalls() {
+  petWalls = pixelData.map(v => v === 1);   // ON pixel = wall (Normie body)
+}
+
+/* ── Is a canvas-coordinate point inside a walkable cell? ── */
+function petPosWalkable(px, py) {
+  const col = Math.floor(px / petCellPx);
+  const row = Math.floor(py / petCellPx);
+  if (col < 0 || col >= 40 || row < 0 || row >= 40) return false;
+  return !petWalls[row * 40 + col];
+}
+
+/* ── Check that a rectangle (entity bounding box) is fully walkable ── */
+function petBoxWalkable(x, y, w, h) {
+  const margin = 1;
+  return petPosWalkable(x + margin,     y + margin)      &&
+         petPosWalkable(x + w - margin, y + margin)      &&
+         petPosWalkable(x + margin,     y + h - margin)  &&
+         petPosWalkable(x + w - margin, y + h - margin);
+}
+
+/* ── Find a random walkable starting position ── */
+function petFindWalkablePos(petW) {
+  const candidates = [];
+  for (let i = 0; i < pixelData.length; i++) {
+    if (!petWalls[i]) candidates.push(i);
+  }
+  if (!candidates.length) return { x: 0, y: 0 };
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const idx = candidates[Math.floor(Math.random() * candidates.length)];
+    const col = idx % 40;
+    const row = Math.floor(idx / 40);
+    const x = col * petCellPx;
+    const y = row * petCellPx;
+    if (petBoxWalkable(x, y, petW, petW)) return { x, y };
+  }
+  // Fallback: use center of a walkable cell (may be tight)
+  const idx = candidates[Math.floor(Math.random() * candidates.length)];
+  return { x: (idx % 40) * petCellPx, y: Math.floor(idx / 40) * petCellPx };
+}
+
+/* ── Create one pet entity ── */
+/*
+  Mooncat spritesheet layout (8 rows, N frames per row):
+    Row 0 — Walk Right
+    Row 1 — Walk Up
+    Row 2 — Walk Left
+    Row 3 — Walk Down
+    Row 4 — Idle Right
+    Row 5 — Idle Up
+    Row 6 — Idle Left
+    Row 7 — Idle Down
+  Frames are square pixels; frameW = imageHeight / 8.
+  Playback: 8 fps = 125 ms per frame.
+*/
+const MC_ROW = {
+  walk_right: 0, walk_up: 1, walk_left: 2, walk_down: 3,
+  idle_right: 4, idle_up:  5, idle_left: 6, idle_down:  7,
+};
+
+function getMooncatRow(ent) {
+  const prefix = ent.isIdle ? 'idle_' : 'walk_';
+  return MC_ROW[prefix + ent.facing] ?? 0;
+}
+
+function createPetEntity(nft, petW) {
+  const mc = isMooncatNFT(nft);
+  const entity = {
+    nft, mc,
+    sprite: new Image(),
+    spriteLoaded: false,
+    sheetRows: 1,       // 8 for mooncats, 1 for others
+    frameW: 0, frameH: 0,
+    totalFrames: 1,
+    frameIndex: 0,
+    frameTimer: 0,
+    frameDuration: 125, // 8 fps
+    x: 0, y: 0,
+    vx: 0, vy: 0,
+    facing: 'right',    // 'right' | 'left' | 'up' | 'down'
+    isIdle: false,
+    idleTimer: 0,
+    active: true,
+    petW,
+  };
+
+  entity.sprite.crossOrigin = 'anonymous';
+  entity.sprite.onload = () => {
+    entity.spriteLoaded = true;
+    if (mc) {
+      // 8 rows; each frame is a square tile = imageHeight / 8
+      entity.sheetRows   = 8;
+      entity.frameH      = entity.sprite.naturalHeight / 8;
+      entity.frameW      = entity.frameH; // square frames (32×32)
+      entity.totalFrames = 8;             // use first 8 frames of each row
+    } else {
+      entity.sheetRows  = 1;
+      entity.totalFrames = 1;
+      entity.frameW     = entity.sprite.naturalWidth;
+      entity.frameH     = entity.sprite.naturalHeight;
+    }
+  };
+  entity.sprite.onerror = () => {
+    if (mc && entity.sprite.src.includes('ipfs')) entity.sprite.src = nft.image || '';
+  };
+  entity.sprite.src = mc
+    ? `https://ipfs.io/ipfs/${MOONCAT_WALKCYCLE_CID}/${nft.tokenId}.png`
+    : normalizeNFTUrl(nft.imageFull || nft.image || '');
+
+  const pos = petFindWalkablePos(petW);
+  entity.x = pos.x;
+  entity.y = pos.y;
+
+  const spd = petSpeedMult * 7;
+  const angle = Math.random() * Math.PI * 2;
+  entity.vx = Math.cos(angle) * spd;
+  entity.vy = Math.sin(angle) * spd;
+
+  return entity;
+}
+
+/* ════════════════════════════════════════════════
+   PET CENTER — init & game loop
+════════════════════════════════════════════════ */
+function initPetCenter() {
+  const canvas   = document.getElementById('pet-canvas');
+  const noNormie = document.getElementById('pet-no-normie');
+
+  if (!pixelData.length) {
+    canvas.style.display   = 'none';
+    noNormie.style.display = 'block';
+    // Still build the collection UI so it's ready when a Normie loads
+    petAllNFTs = userNFTs.filter(isPetNFT);
+    buildPetCollectionState();
+    renderPetCollectionFilter();
+    renderPetNFTGrid();
+    return;
+  }
+
+  noNormie.style.display = 'none';
+  canvas.style.display   = 'block';
+
+  // Size the canvas to fit the available space
+  const wrap = document.querySelector('.pet-canvas-wrap');
+  const maxPx = Math.min(wrap.clientWidth - 24, wrap.clientHeight - 24, 640);
+  petCellPx = Math.max(6, Math.floor(maxPx / 40));
+  const canvasDim = 40 * petCellPx;
+  canvas.width  = canvasDim;
+  canvas.height = canvasDim;
+
+  buildPetWalls();
+
+  // Build collection state only once (or after wallet change)
+  if (petAllNFTs.length === 0 || petAllNFTs[0] !== userNFTs.filter(isPetNFT)[0]) {
+    petAllNFTs = userNFTs.filter(isPetNFT);
+    buildPetCollectionState();
+  }
+  renderPetCollectionFilter();
+  renderPetNFTGrid();
+  spawnActivePets();
+
+  stopPetLoop();
+  lastPetTs = null;
+  petAnimId = requestAnimationFrame(petLoop);
+}
+
+function stopPetLoop() {
+  if (petAnimId) { cancelAnimationFrame(petAnimId); petAnimId = null; }
+}
+
+/* ── Build initial collection state from petAllNFTs ── */
+function buildPetCollectionState() {
+  petSelectedCollections = new Set();
+  petAllNFTs.forEach(n => { if (n.collection) petSelectedCollections.add(n.collection); });
+  // All active by default
+  petActiveIndices = new Set(petAllNFTs.map((_, i) => i));
+}
+
+/* ── Current pet pixel size from slider ── */
+function calcPetW() { return Math.max(Math.floor(petCellPx * petSizeMult), 8); }
+
+/* ── Spawn entities from active pet indices ── */
+function spawnActivePets() {
+  const petW = calcPetW();
+  petEntities = [];
+  for (const i of petActiveIndices) {
+    for (let c = 0; c < petCopies; c++) {
+      petEntities.push(createPetEntity(petAllNFTs[i], petW));
+    }
+  }
+}
+
+function respawnPets() { spawnActivePets(); }
+
+function shufflePets() {
+  // Give every active entity a new random walkable position and direction
+  const petW = calcPetW();
+  for (const ent of petEntities) {
+    const pos = petFindWalkablePos(petW);
+    ent.x = pos.x;
+    ent.y = pos.y;
+    const a = Math.random() * Math.PI * 2;
+    const spd = petSpeedMult * 7;
+    ent.vx = Math.cos(a) * spd;
+    ent.vy = Math.sin(a) * spd;
+    ent.isIdle = false;
+    ent.frameIndex = 0;
+    ent.frameTimer = 0;
+  }
+}
+
+/* ════════════════════════════════════════════════
+   PET COLLECTION PICKER
+════════════════════════════════════════════════ */
+
+function renderPetCollectionFilter() {
+  const listEl = document.getElementById('pet-collection-filter-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+
+  // Build collection → count map
+  const map = new Map();
+  petAllNFTs.forEach(n => {
+    const c = n.collection || n.contract || 'Unknown';
+    if (!map.has(c)) map.set(c, 0);
+    map.set(c, map.get(c) + 1);
+  });
+
+  const query = petCollectionSearchQuery.toLowerCase();
+
+  map.forEach((count, col) => {
+    if (query && !col.toLowerCase().includes(query)) return;
+    const checked = petSelectedCollections.has(col);
+
+    const row = document.createElement('label');
+    row.className = 'collection-filter-item' + (checked ? ' checked' : '');
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = checked;
+    chk.onchange = () => togglePetCollection(col);
+
+    const name = document.createElement('span');
+    name.className = 'collection-filter-name';
+    name.textContent = col;
+
+    const cnt = document.createElement('span');
+    cnt.className = 'collection-filter-count';
+    cnt.textContent = count;
+
+    row.appendChild(chk);
+    row.appendChild(name);
+    row.appendChild(cnt);
+    listEl.appendChild(row);
+  });
+}
+
+function renderPetNFTGrid() {
+  const container = document.getElementById('pet-nft-container');
+  const headEl    = document.getElementById('pet-list-head');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!petAllNFTs.length) {
+    container.innerHTML = '<div class="empty">NO MOONCATS OR<br>CC0MON IN WALLET</div>';
+    if (headEl) headEl.textContent = 'PETS';
+    return;
+  }
+
+  const query   = petCollectionSearchQuery.toLowerCase();
+  let shown = 0;
+
+  petAllNFTs.forEach((nft, i) => {
+    const col = nft.collection || nft.contract || 'Unknown';
+    if (!petSelectedCollections.has(col)) return;
+    if (query && !col.toLowerCase().includes(query) && !(nft.name || '').toLowerCase().includes(query)) return;
+
+    shown++;
+    const card = document.createElement('div');
+    const isActive = petActiveIndices.has(i);
+    card.className = 'pet-nft-card nft-card ' + (isActive ? 'active' : 'inactive');
+    card.title = [nft.collection, nft.name].filter(Boolean).join(' — ');
+
+    const img = document.createElement('img');
+    img.src = nft.image || '';
+    img.alt = nft.name || '';
+    img.loading = 'lazy';
+
+    const check = document.createElement('div');
+    check.className = 'pet-card-check';
+
+    card.appendChild(img);
+    card.appendChild(check);
+    card.addEventListener('click', () => togglePetNFT(i, card));
+    container.appendChild(card);
+  });
+
+  if (headEl) headEl.textContent = `PETS (${petActiveIndices.size}/${petAllNFTs.length})`;
+  if (!shown) container.innerHTML = '<div class="empty">NO PETS MATCH<br>FILTER</div>';
+}
+
+function togglePetCollection(col) {
+  if (petSelectedCollections.has(col)) petSelectedCollections.delete(col);
+  else petSelectedCollections.add(col);
+  renderPetCollectionFilter();
+  renderPetNFTGrid();
+}
+
+function togglePetNFT(idx, cardEl) {
+  if (petActiveIndices.has(idx)) {
+    petActiveIndices.delete(idx);
+    cardEl.classList.remove('active');
+    cardEl.classList.add('inactive');
+    // Remove live entity
+    petEntities = petEntities.filter(e => e.nft !== petAllNFTs[idx]);
+  } else {
+    petActiveIndices.add(idx);
+    cardEl.classList.add('active');
+    cardEl.classList.remove('inactive');
+    // Spawn new entities if canvas is running
+    if (petAnimId && pixelData.length) {
+      const petW = calcPetW();
+      for (let c = 0; c < petCopies; c++) {
+        petEntities.push(createPetEntity(petAllNFTs[idx], petW));
+      }
+    }
+  }
+  const headEl = document.getElementById('pet-list-head');
+  if (headEl) headEl.textContent = `PETS (${petActiveIndices.size}/${petAllNFTs.length})`;
+}
+
+function onPetCollectionSearch(val) {
+  petCollectionSearchQuery = val;
+  renderPetCollectionFilter();
+  renderPetNFTGrid();
+}
+
+function petTickAllCollections() {
+  const map = new Map();
+  petAllNFTs.forEach(n => { const c = n.collection || n.contract || 'Unknown'; map.set(c, true); });
+  map.forEach((_, c) => petSelectedCollections.add(c));
+  renderPetCollectionFilter();
+  renderPetNFTGrid();
+}
+
+function petUntickAllCollections() {
+  petSelectedCollections.clear();
+  renderPetCollectionFilter();
+  renderPetNFTGrid();
+}
+
+function petSelectAllNFTs() {
+  petAllNFTs.forEach((_, i) => petActiveIndices.add(i));
+  renderPetNFTGrid();
+  if (pixelData.length) spawnActivePets();
+}
+
+function petDeselectAllNFTs() {
+  petActiveIndices.clear();
+  petEntities = [];
+  renderPetNFTGrid();
+}
+
+/* ── Game loop ── */
+function petLoop(ts) {
+  if (!lastPetTs) lastPetTs = ts;
+  const dt = Math.min((ts - lastPetTs) / 1000, 0.08);
+  lastPetTs = ts;
+
+  const canvas = document.getElementById('pet-canvas');
+  if (!canvas || canvas.style.display === 'none') { stopPetLoop(); return; }
+  const ctx = canvas.getContext('2d');
+
+  drawPetWorld(ctx, canvas.width, canvas.height);
+
+  for (const ent of petEntities) {
+    if (ent.active) {
+      updatePet(ent, dt);
+      drawPet(ctx, ent);
+    }
+  }
+
+  petAnimId = requestAnimationFrame(petLoop);
+}
+
+/* ── Draw the world (Normie walls + walkable floor) ── */
+function drawPetWorld(ctx, w, h) {
+  ctx.imageSmoothingEnabled = true; // smooth background rendering
+  ctx.clearRect(0, 0, w, h);
+  const sz = petCellPx;
+  for (let i = 0; i < 1600; i++) {
+    const col = i % 40;
+    const row = Math.floor(i / 40);
+    if (petWalls[i]) {
+      ctx.fillStyle = '#48494b';
+    } else {
+      ctx.fillStyle = '#dddfd9';
+    }
+    ctx.fillRect(col * sz, row * sz, sz, sz);
+  }
+  // Subtle grid lines on walkable area
+  ctx.strokeStyle = 'rgba(72,73,75,0.06)';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= 40; c++) {
+    ctx.beginPath(); ctx.moveTo(c * sz, 0); ctx.lineTo(c * sz, h); ctx.stroke();
+  }
+  for (let r = 0; r <= 40; r++) {
+    ctx.beginPath(); ctx.moveTo(0, r * sz); ctx.lineTo(w, r * sz); ctx.stroke();
+  }
+}
+
+/* ── Update one pet entity ── */
+function updatePet(ent, dt) {
+  // Advance animation at 8 fps
+  ent.frameTimer += dt * 1000;
+  if (ent.frameTimer >= ent.frameDuration) {
+    ent.frameTimer -= ent.frameDuration;
+    ent.frameIndex  = (ent.frameIndex + 1) % Math.max(1, ent.totalFrames);
+  }
+
+  // While idle: count down timer, then resume walking
+  if (ent.isIdle) {
+    ent.idleTimer -= dt;
+    if (ent.idleTimer <= 0) {
+      ent.isIdle     = false;
+      ent.frameIndex = 0;
+      const a = Math.random() * Math.PI * 2;
+      const spd = petSpeedMult * 7;
+      ent.vx = Math.cos(a) * spd;
+      ent.vy = Math.sin(a) * spd;
+    }
+    return;
+  }
+
+  const spd = petSpeedMult * 7;
+
+  // Re-normalise speed each frame (handles speed slider changes)
+  const mag = Math.sqrt(ent.vx * ent.vx + ent.vy * ent.vy);
+  if (mag > 0.5) {
+    ent.vx = (ent.vx / mag) * spd;
+    ent.vy = (ent.vy / mag) * spd;
+  } else {
+    const a = Math.random() * Math.PI * 2;
+    ent.vx = Math.cos(a) * spd;
+    ent.vy = Math.sin(a) * spd;
+  }
+
+  // Dominant-axis facing — drives which spritesheet row to use
+  if (Math.abs(ent.vx) >= Math.abs(ent.vy)) {
+    ent.facing = ent.vx >= 0 ? 'right' : 'left';
+  } else {
+    ent.facing = ent.vy >= 0 ? 'down' : 'up';
+  }
+
+  const newX = ent.x + ent.vx * dt;
+  const newY = ent.y + ent.vy * dt;
+  const { petW } = ent;
+
+  const canX = petBoxWalkable(newX, ent.y, petW, petW);
+  const canY = petBoxWalkable(ent.x, newY, petW, petW);
+
+  if (canX && canY) {
+    ent.x = newX;
+    ent.y = newY;
+  } else {
+    // Hit something: play idle, then walk a new direction
+    ent.isIdle    = true;
+    ent.idleTimer = 0.35 + Math.random() * 0.5;
+    ent.frameIndex = 0;
+    // Partial slide along the unblocked axis
+    if (canX) ent.x = newX;
+    if (canY) ent.y = newY;
+  }
+}
+
+/* ── Draw one pet entity ── */
+function drawPet(ctx, ent) {
+  const { x, y, petW } = ent;
+
+  if (!ent.spriteLoaded || ent.frameW <= 0) {
+    ctx.fillStyle = 'rgba(72,73,75,0.25)';
+    ctx.fillRect(x, y, petW, petW);
+    return;
+  }
+
+  // Snap all coordinates to integers — prevents sub-pixel sampling at source boundaries
+  const dx = Math.round(x);
+  const dy = Math.round(y);
+  const dw = Math.round(petW);
+
+  if (ent.mc && ent.sheetRows === 8) {
+    // Pixel-art sprite: nearest-neighbor prevents row-bleed when upscaling
+    ctx.imageSmoothingEnabled = false;
+    const sheetRow = getMooncatRow(ent);
+    const srcX = Math.round(ent.frameIndex * ent.frameW);
+    const srcY = Math.round(sheetRow * ent.frameH);
+    const srcW = Math.round(ent.frameW);
+    const srcH = Math.round(ent.frameH);
+    ctx.drawImage(ent.sprite, srcX, srcY, srcW, srcH, dx, dy, dw, dw);
+    ctx.imageSmoothingEnabled = true; // restore for everything else
+  } else {
+    // Static NFT image (cc0mon etc.) — horizontally flip when facing left
+    ctx.save();
+    if (ent.facing === 'left') {
+      ctx.translate(dx + dw, dy);
+      ctx.scale(-1, 1);
+      ctx.translate(-dx, -dy);
+    }
+    if (ent.totalFrames > 1) {
+      const srcX = Math.round(ent.frameIndex * ent.frameW);
+      ctx.drawImage(ent.sprite, srcX, 0, Math.round(ent.frameW), Math.round(ent.frameH), dx, dy, dw, dw);
+    } else {
+      ctx.drawImage(ent.sprite, dx, dy, dw, dw);
+    }
+    ctx.restore();
+  }
+}
+
+/* ── Render the pet list in the sidebar ── */
+/* renderPetList removed — replaced by renderPetNFTGrid / renderPetCollectionFilter */
+
+/* ════════════════════════════════════════════════
+   PET GIF EXPORT
+════════════════════════════════════════════════ */
+async function exportPetGIF() {
+  if (!pixelData.length)  { alert('Load a Normie first.'); return; }
+  if (!petEntities.filter(e => e.active).length) { alert('No active pets to export.'); return; }
+
+  const btn      = document.getElementById('pet-gif-btn');
+  const statusEl = document.getElementById('pet-export-status');
+  btn.disabled   = true;
+
+  const canvas = document.getElementById('pet-canvas');
+  const ctx    = canvas.getContext('2d');
+
+  stopPetLoop(); // drive simulation manually at fixed rate
+
+  statusEl.textContent = 'PREPARING...';
+  await new Promise(r => setTimeout(r, 40));
+
+  // Wait up to 3 s for the module to finish loading
+  for (let t = 0; t < 30 && !window.gifenc?.GIFEncoder; t++) {
+    statusEl.textContent = 'LOADING LIB...';
+    await new Promise(r => setTimeout(r, 100));
+  }
+  const { GIFEncoder, quantize, applyPalette } = window.gifenc || {};
+  if (!GIFEncoder) {
+    alert('GIF library could not be loaded. Check your internet connection and try again.');
+    btn.disabled = false;
+    lastPetTs = null; petAnimId = requestAnimationFrame(petLoop);
+    return;
+  }
+
+  const GIF_SIZE     = Math.min(canvas.width, 400);
+  const FPS          = 10;
+  const TOTAL_FRAMES = 50;   // 5 s @ 10 fps
+  const DT           = 1 / FPS;
+  const DELAY        = 10;   // centiseconds per frame
+
+  // Offscreen canvas — smooth high-quality downscale
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = offCanvas.height = GIF_SIZE;
+  const offCtx = offCanvas.getContext('2d');
+  offCtx.imageSmoothingEnabled = true;
+  offCtx.imageSmoothingQuality = 'high';
+
+  const encoder = GIFEncoder();
+
+  // ── Phase 1: render all frames, store pixel data ──
+  statusEl.textContent = 'RENDERING...';
+  const frames = [];
+  for (let f = 0; f < TOTAL_FRAMES; f++) {
+    for (const ent of petEntities) { if (ent.active) updatePet(ent, DT); }
+    drawPetWorld(ctx, canvas.width, canvas.height);
+    for (const ent of petEntities) { if (ent.active) drawPet(ctx, ent); }
+    offCtx.drawImage(canvas, 0, 0, GIF_SIZE, GIF_SIZE);
+    frames.push(offCtx.getImageData(0, 0, GIF_SIZE, GIF_SIZE).data);
+
+    if (f % 5 === 0) {
+      statusEl.textContent = `RENDERING ${Math.round((f + 1) / TOTAL_FRAMES * 50)}%`;
+      await new Promise(r => setTimeout(r, 4));
+    }
+  }
+
+  // ── Phase 2: build palette from 5 evenly-spaced sample frames ──
+  statusEl.textContent = 'BUILDING PALETTE...';
+  await new Promise(r => setTimeout(r, 4));
+  const step     = Math.floor(TOTAL_FRAMES / 5);
+  const combined = new Uint8ClampedArray(GIF_SIZE * GIF_SIZE * 4 * 5);
+  for (let s = 0; s < 5; s++) combined.set(frames[s * step], s * GIF_SIZE * GIF_SIZE * 4);
+  const palette = quantize(combined, 256);
+
+  // ── Phase 3: encode all frames ──
+  for (let f = 0; f < frames.length; f++) {
+    encoder.writeFrame(applyPalette(frames[f], palette), GIF_SIZE, GIF_SIZE, { palette, delay: DELAY });
+    if (f % 5 === 0) {
+      statusEl.textContent = `ENCODING ${Math.round(50 + (f + 1) / TOTAL_FRAMES * 50)}%`;
+      await new Promise(r => setTimeout(r, 4));
+    }
+  }
+
+  encoder.finish();
+  const blob = new Blob([encoder.bytesView()], { type: 'image/gif' });
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.download = `normie-pet-${currentNormieId ?? 'demo'}-5s.gif`;
+  link.href = url;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  statusEl.textContent = 'SAVED!';
+  setTimeout(() => { statusEl.textContent = ''; }, 3000);
+  btn.disabled = false;
+
+  lastPetTs = null;
+  petAnimId = requestAnimationFrame(petLoop);
+}
+
+/* ── Speed control ── */
+function updatePetSpeed(val) {
+  petSpeedMult = Math.min(10, Math.max(1, parseInt(val) || 4));
+  document.getElementById('pet-speed-slider').value = petSpeedMult;
+  document.getElementById('pet-speed-input').value  = petSpeedMult;
+}
+
+/* ── Copies control ── */
+function updatePetCopies(val) {
+  petCopies = Math.min(20, Math.max(1, parseInt(val) || 1));
+  document.getElementById('pet-copies-slider').value = petCopies;
+  document.getElementById('pet-copies-input').value  = petCopies;
+  // Respawn immediately so count takes effect
+  spawnActivePets();
+}
+
+/* ── Size control ── */
+function updatePetSize(val) {
+  petSizeMult = Math.min(5, Math.max(1, parseFloat(val) || 2.2));
+  document.getElementById('pet-size-slider').value = petSizeMult.toFixed(1);
+  document.getElementById('pet-size-input').value  = petSizeMult.toFixed(1);
+  // Resize all existing entities live
+  const petW = calcPetW();
+  for (const ent of petEntities) {
+    ent.petW = petW;
+  }
+}
 </script>
 
 <footer class="site-footer">
